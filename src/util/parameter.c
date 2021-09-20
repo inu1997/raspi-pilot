@@ -228,7 +228,7 @@ int parameter_set_value_no_mutex(const char *key, void *data, bool save) {
 }
 
 /**
- * @brief Get the type of parameter.
+ * @brief Get the type of parameter with mutex protection.
  * 
  * @param key 
  *      Key/Name of parameter.
@@ -244,6 +244,13 @@ int parameter_get_type(const char *key) {
     return ret;
 }
 
+/**
+ * @brief Get the type of parameter without mutex protection.
+ * 
+ * @param key 
+ *      Key/Name of parameter.
+ * @return -1 if not found else type of parameter.
+ */
 int parameter_get_type_no_mutex(const char *key) {
 
     int ret = -1;
@@ -258,7 +265,14 @@ int parameter_get_type_no_mutex(const char *key) {
 
     return ret;
 }
-
+ 
+/**
+ * @brief Get the index of key with mutex protection.
+ * 
+ * @param key 
+ *      Key/Name of parameter.
+ * @return -1 if not exist in key list else index of the key.
+ */
 int parameter_get_index(const char *key) {
     parameter_lock_mutex();
     
@@ -269,6 +283,13 @@ int parameter_get_index(const char *key) {
     return ret;
 }
 
+/**
+ * @brief Get the index of key without mutex protection.
+ * 
+ * @param key 
+ *      Key/Name of parameter.
+ * @return -1 if not exist in key list else index of the key.
+ */
 int parameter_get_index_no_mutex(const char *key) {
     int index = -1;
     int i;
