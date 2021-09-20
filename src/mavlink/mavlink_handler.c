@@ -84,6 +84,10 @@ int mavlink_handler_handle_msg(mavlink_message_t *msg) {
             DEBUG("%s.\n", TO_STRING(MAVLINK_MSG_ID_PARAM_REQUEST_LIST));
             ret = mavlink_handle_param_request_list();
         break;
+        case MAVLINK_MSG_ID_MISSION_REQUEST_LIST:
+            DEBUG("%s.\n", TO_STRING(MAVLINK_MSG_ID_MISSION_REQUEST_LIST));
+            ret = mavlink_handle_mission_request_list();
+        break;
         default:
             LOG_ERROR("Unsupported message(id: %d).\n", msg->msgid);
     }
@@ -181,10 +185,17 @@ int mavlink_handle_mission_request_list() {
 
     int ret = -1;
     if (decoded.target_system == MAVLINK_SYS_ID) {
-        switch (decoded.mission_type) {
-            case MAV_MISSION_TYPE_ALL:
-            break;
-        }
+        mavlink_message_t msg;
+        mavlink_msg_mission_count_pack_chan(
+            MAVLINK_SYS_ID,
+            MAV_COMP_ID_AUTOPILOT1,
+            MAVLINK_COMM_0,
+            &msg,
+            mavlink_handler_get_current_msg()->sysid,
+            mavlink_handler_get_current_msg()->compid,
+            0,
+            MAV_MISSION_TYPE_MISSION);
+        MAVLINK_SEND(&msg);
         ret = 0;
     }
 
