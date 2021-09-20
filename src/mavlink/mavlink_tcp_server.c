@@ -83,6 +83,8 @@ void server_close() {
 //-----
 
 void *_server_handler(void *arg) {
+    pthread_detach(pthread_self());
+    
     struct sockaddr_in client_info;
     int addr_len = sizeof(client_info);
     while (1){

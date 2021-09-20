@@ -31,6 +31,8 @@ int mavlink_init_udp() {
 }
 
 void *mavlink_udp_handler(void *arg) {
+    pthread_detach(pthread_self());
+    
     int sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (sock_fd < 0) {
         LOG_ERROR("Failed to open fd.\n");

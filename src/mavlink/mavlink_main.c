@@ -104,6 +104,8 @@ int mavlink_publish(uint8_t *buf, int len) {
  * @return NULL
  */
 void *mavlink_connection_handler(void *mavlink_file) {
+    pthread_detach(pthread_self());
+    
     struct MAVLinkFile *connection = (struct MAVLinkFile*)mavlink_file;
     LOG("Connection to \"%s\" established. Channel: %d.\n", connection->name, connection->mav_channel);
     LOG("Initializing.\n");
@@ -111,6 +113,7 @@ void *mavlink_connection_handler(void *mavlink_file) {
         DEBUG("Executing on_begin function.\n");
         connection->on_begin();
     }
+    DEBUG("Setting detachable.\n");
     
     DEBUG("Creating subscriber.\n");
     struct Subscriber *sub = subscriber_init();
@@ -271,7 +274,7 @@ void mavlink_release_channel(int chan) {
     if (chan < NUMBER_OF_CHANNELS) {
         channel_is_occupied[chan] = false;
     }
-
+    mavlink_reset_channel_status(chan);
     pthread_mutex_unlock(&channel_mutex);
 }
 
