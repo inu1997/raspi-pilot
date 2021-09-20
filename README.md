@@ -2,6 +2,9 @@
 My Raspberry Pi Rover controller software.  
 Communicate with QGourndControl using MAVLink.
 
+## Requirement
+* json-c
+
 ## Code structrue
 * driver
     * I2C/SPI device driver.
