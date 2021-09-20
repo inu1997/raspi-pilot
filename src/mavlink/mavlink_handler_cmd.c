@@ -130,7 +130,7 @@ int mavlink_handle_cmd_request_protocol_version() {
 
     mavlink_msg_protocol_version_pack_chan(
         1,
-        MAV_COMP_ID_BATTERY,
+        MAV_COMP_ID_AUTOPILOT1,
         MAVLINK_COMM_0,
         &new_msg,
         mavlink_get_proto_version(MAVLINK_COMM_0),
