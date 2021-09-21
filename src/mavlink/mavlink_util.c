@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <pthread.h>
+#include <unistd.h>
 
 /**
  * @brief MAVLink print string using status text message.
@@ -99,4 +101,26 @@ int mavlink_send_parameter(const char *key) {
         ret = 0;
     }
     return ret;
+}
+
+void *mavlink_send_parameter_list_handler(void *arg) {
+    pthread_detach(pthread_self());
+
+    int i;
+    int cnt = parameter_get_count_no_mutex();
+    for (i = 0; i < cnt; i++) {
+        mavlink_send_parameter(parameter_keys[i]);
+        usleep(500000);
+    }
+    pthread_exit(NULL);
+}
+
+/**
+ * @brief Create a thread in order to send parameter list while keep transmition thread active.
+ * 
+ * @return 0 if success else errno.
+ */
+int mavlink_send_parameter_list() {
+    pthread_t th;
+    return pthread_create(&th, NULL, mavlink_send_parameter_list_handler, NULL);
 }

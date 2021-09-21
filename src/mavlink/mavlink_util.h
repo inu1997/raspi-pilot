@@ -20,4 +20,6 @@ int mavlink_printf(uint8_t severity, const char *fmt, ...);
 
 int mavlink_send_parameter(const char *key);
 
+int mavlink_send_parameter_list();
+
 #endif // _MAVLINK_UTIL_H_

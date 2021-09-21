@@ -285,10 +285,5 @@ int mavlink_handle_param_request_read() {
  * @return 0 if success else -1.
  */
 int mavlink_handle_param_request_list() {
-    int i;
-    int cnt = parameter_get_count_no_mutex();
-    for (i = 0; i < cnt; i++) {
-        mavlink_send_parameter(parameter_keys[i]);
-    }
-    return 0;
+    return mavlink_send_parameter_list();
 }
