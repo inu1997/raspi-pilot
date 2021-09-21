@@ -132,7 +132,7 @@ void *mavlink_connection_handler(void *mavlink_file) {
     LOG("Connection \"%s\" is now trasmitting.\n", connection->name);
     while (1) {
         // Limit rate.
-        usleep(30000);
+        usleep(10000);
         
         int i;
         // Send
@@ -219,7 +219,7 @@ void *mavlink_connection_handler(void *mavlink_file) {
     close(connection->fd);
     LOG("Connection to \"%s\" died.\n", connection->name);
     free(connection);
-    return NULL;
+    pthread_exit(NULL);
 }
 
 /**

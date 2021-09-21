@@ -87,7 +87,7 @@ void *mavlink_udp_handler(void *arg) {
 
     while (1) {
         // Limit rate.
-        usleep(30000);
+        usleep(10000);
 
         int i;
         // Send
@@ -154,11 +154,10 @@ void *mavlink_udp_handler(void *arg) {
     unsubscribe(mavlink_publisher, sub);
     
     subscriber_destroy(sub);
-
     
     close(sock_fd);
     LOG("UDP connection died.\n");
     
-    return NULL;
+    pthread_exit(NULL);
 
 }

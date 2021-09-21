@@ -103,17 +103,8 @@ int mavlink_send_parameter(const char *key) {
     return ret;
 }
 
-void *mavlink_send_parameter_list_handler(void *arg) {
-    pthread_detach(pthread_self());
-
-    int i;
-    int cnt = parameter_get_count_no_mutex();
-    for (i = 0; i < cnt; i++) {
-        mavlink_send_parameter(parameter_keys[i]);
-        usleep(500000);
-    }
-    pthread_exit(NULL);
-}
+pthread_mutex_t mavlink_send_parameter_list_mutex = PTHREAD_MUTEX_INITIALIZER;
+void *mavlink_send_parameter_list_handler(void *arg);
 
 /**
  * @brief Create a thread in order to send parameter list while keep transmition thread active.
@@ -123,4 +114,17 @@ void *mavlink_send_parameter_list_handler(void *arg) {
 int mavlink_send_parameter_list() {
     pthread_t th;
     return pthread_create(&th, NULL, mavlink_send_parameter_list_handler, NULL);
+}
+
+void *mavlink_send_parameter_list_handler(void *arg) {
+    pthread_detach(pthread_self());
+    pthread_mutex_lock(&mavlink_send_parameter_list_mutex);
+    int i;
+    int cnt = parameter_get_count_no_mutex();
+    for (i = 0; i < cnt; i++) {
+        mavlink_send_parameter(parameter_keys[i]);
+        usleep(500000);
+    }
+    pthread_mutex_unlock(&mavlink_send_parameter_list_mutex);
+    pthread_exit(NULL);
 }

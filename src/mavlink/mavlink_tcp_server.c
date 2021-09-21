@@ -103,7 +103,7 @@ void *_server_handler(void *arg) {
         usleep(10000);
     }    
 
-    return NULL;
+    pthread_exit(NULL);
 }
 
 void on_connect() {
