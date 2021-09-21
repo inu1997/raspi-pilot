@@ -123,7 +123,11 @@ void *mavlink_send_parameter_list_handler(void *arg) {
     int cnt = parameter_get_count_no_mutex();
     for (i = 0; i < cnt; i++) {
         mavlink_send_parameter(parameter_keys[i]);
-        usleep(500000);
+        usleep(100000);
+        if (mavlink_get_active_connections() == 0) {
+            LOG_ERROR("No connection is alive. Stop sending parameter list.\n");
+            break;
+        }
     }
     pthread_mutex_unlock(&mavlink_send_parameter_list_mutex);
     pthread_exit(NULL);
