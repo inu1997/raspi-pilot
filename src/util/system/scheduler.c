@@ -8,6 +8,11 @@
 #include <sys/mman.h>
 #include <sys/time.h>
 
+void scheduler_unlock_memory() {
+    LOG("Unlocking all memory.\n");
+    munlockall();
+}
+
 /**
  * @brief Initate the Real Time process of self.
  * 
@@ -22,11 +27,18 @@ int scheduler_init_real_time() {
     }
 
     int ret;
+    
+    if ((ret = atexit(scheduler_unlock_memory)) != 0) {
+        LOG_ERROR("Failed to register unlock atexit.\n");
+        goto EXIT;
+    }
+    
     LOG("Locking memory.\n");
-    if ((ret = mlockall(MCL_CURRENT | MCL_FUTURE)) != 0) {
+    if ((ret = mlockall(MCL_CURRENT)) != 0) {
         LOG_ERROR("Failed to lock memory.\n");
         goto EXIT;
     }
+    
 
     struct sched_param param = {
         .sched_priority = 99

@@ -1,6 +1,6 @@
 #include "subscription.h"
 
-#include "util/data_structure/linked_queue.h"
+#include "util/data_structure/circular_queue.h"
 #include "util/data_structure/list.h"
 
 #include "util/logger.h"
@@ -18,7 +18,7 @@ struct Publisher {
 };
 
 struct Subscriber{
-    struct LinkedQueue *queue; // The queue buffer.
+    struct CircularQueue *queue; // The queue buffer.
     pthread_mutex_t mutex; // So it won't be messed up in multi-thread.
 };
 
@@ -51,13 +51,13 @@ struct Publisher *publisher_init() {
  */
 struct Subscriber *subscriber_init() {
     struct Subscriber *sub = malloc(sizeof(struct Subscriber));
-    sub->queue = linked_queue_init(sizeof(struct Message));
+    sub->queue = circular_queue_init(sizeof(struct Message), 16);
     pthread_mutex_init(&sub->mutex, NULL);
     return sub;
 }
 
 void subscriber_destroy(struct Subscriber *sub) {
-    linked_queue_destroy(sub->queue);
+    circular_queue_destroy(sub->queue);
     pthread_mutex_destroy(&sub->mutex);
     free(sub);
 }
@@ -165,7 +165,7 @@ int publisher_get_subscriber_count(struct Publisher *pub) {
 int subscriber_get_message_count(struct Subscriber *sub) {
     pthread_mutex_lock(&sub->mutex);
 
-    int cnt = linked_queue_get_count(sub->queue);
+    int cnt = circular_queue_get_count(sub->queue);
 
     pthread_mutex_unlock(&sub->mutex);
     return cnt;
@@ -181,7 +181,7 @@ int subscriber_get_message_count(struct Subscriber *sub) {
 bool subscriber_has_message(struct Subscriber *sub) {
     pthread_mutex_lock(&sub->mutex);
     
-    bool ret = !linked_queue_is_empty(sub->queue);
+    bool ret = !circular_queue_is_empty(sub->queue);
     
     pthread_mutex_unlock(&sub->mutex);
     return ret;
@@ -203,7 +203,7 @@ int subscriber_receive(struct Subscriber *sub, uint8_t *msg, struct Publisher **
     struct Message m;
     int ret = -1;
 
-    if (linked_queue_dequeue(sub->queue, &m) != -1) {
+    if (circular_queue_dequeue(sub->queue, &m) != -1) {
         ret = m.len;
         memcpy(msg, m.buf, m.len);
         
@@ -235,7 +235,7 @@ int subscriber_send(struct Subscriber *sub, uint8_t *msg, int len, struct Publis
     m.len = len;
     memcpy(m.buf, msg, len);
 
-    int ret = linked_queue_enqueue(sub->queue, &m);
+    int ret = circular_queue_enqueue(sub->queue, &m);
 
     pthread_mutex_unlock(&sub->mutex);
     return ret;
