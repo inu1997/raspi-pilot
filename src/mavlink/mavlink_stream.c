@@ -42,7 +42,7 @@ void *mavlink_stream_handler(void *);
 int mavlink_init_stream() {
     LOG("Initiating MAVLink stream.\n");
     
-    if (scheduler_create(&_stream_thread, 5, mavlink_stream_handler, NULL) != 0) {
+    if (pthread_create(&_stream_thread, NULL, mavlink_stream_handler, NULL) != 0) {
         LOG_ERROR("Failed to create thread.\n");
         return -1;
     }
@@ -74,12 +74,6 @@ struct TaskBlock tasks[] = {
 //-----
 
 void *mavlink_stream_handler(void *arg) {
-#ifdef _DEBUG
-    struct sched_param param;
-    int policy;
-    pthread_getschedparam(pthread_self(), &policy, &param);
-    DEBUG("Policy: %d, Priority: %d.\n", policy, param.sched_priority);
-#endif // _DEBUG
     int i = 0;
     while (1) {
         
