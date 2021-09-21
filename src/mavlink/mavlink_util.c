@@ -118,7 +118,11 @@ int mavlink_send_parameter_list() {
 
 void *mavlink_send_parameter_list_handler(void *arg) {
     pthread_detach(pthread_self());
-    pthread_mutex_lock(&mavlink_send_parameter_list_mutex);
+    if (pthread_mutex_trylock(&mavlink_send_parameter_list_mutex) != 0) {
+        LOG_ERROR("There is a trasmition currently running.\n");
+        pthread_exit(NULL);
+    }
+
     int i;
     int cnt = parameter_get_count_no_mutex();
     for (i = 0; i < cnt; i++) {

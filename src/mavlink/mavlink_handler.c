@@ -268,11 +268,8 @@ int mavlink_handle_param_request_read() {
         decoded.param_id,
         decoded.param_index);
     struct Parameter *p;
-    if (strlen(decoded.param_id) == 0) {
-        ret = mavlink_handle_param_request_list();
-    } else {
-        ret = mavlink_send_parameter(decoded.param_id);
-    }
+    
+    ret = mavlink_send_parameter(decoded.param_id);
 
     return ret;
 }
