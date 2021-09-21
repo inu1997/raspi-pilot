@@ -269,7 +269,7 @@ int mavlink_handle_param_request_read() {
         decoded.param_index);
     struct Parameter *p;
     
-    ret = mavlink_send_parameter(decoded.param_id);
+    ret = mavlink_send_parameter(parameter_keys[decoded.param_index]);
 
     return ret;
 }
