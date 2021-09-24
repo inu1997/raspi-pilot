@@ -21,6 +21,7 @@ struct CircularQueue {
  */
 struct CircularQueue *circular_queue_init(int size, int capacity) {
     struct CircularQueue *q = malloc(sizeof(struct CircularQueue));
+    assert(q != NULL);
     q->head = q->tail = 0;
     q->size = size;
     q->capacity = capacity + 1;
