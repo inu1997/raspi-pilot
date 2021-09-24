@@ -78,7 +78,7 @@ int cq_dequeue(struct CharQueue *q, char *buf, int len) {
         buf[i] = q->buf[q->head];
         q->head = (q->head + 1) % CHAR_QUEUE_MAX_LENGTH;
     }
-    return i + 1;
+    return i;
 }
 
 /**
