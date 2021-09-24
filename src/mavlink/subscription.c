@@ -1,6 +1,6 @@
 #include "subscription.h"
 
-#include "util/data_structure/circular_queue.h"
+#include "util/data_structure/char_queue.h"
 #include "util/data_structure/list.h"
 
 #include "util/logger.h"
@@ -18,17 +18,12 @@ struct Publisher {
 };
 
 struct Subscriber{
-    struct CircularQueue *queue; // The queue buffer.
+    bool active;
+    struct CharQueue *queue; // The queue buffer.
     pthread_mutex_t mutex; // So it won't be messed up in multi-thread.
 };
 
-struct Message {
-    struct Publisher *from_who;
-    uint8_t buf[MAX_MESSAGE_LENGTH];
-    uint8_t len;
-};
-
-int subscriber_send(struct Subscriber *sub, uint8_t *msg, int len, struct Publisher *from_who);
+int subscriber_send(struct Subscriber *sub, const char *buf, int len);
 
 //----- Initiators
 
@@ -51,13 +46,14 @@ struct Publisher *publisher_init() {
  */
 struct Subscriber *subscriber_init() {
     struct Subscriber *sub = malloc(sizeof(struct Subscriber));
-    sub->queue = circular_queue_init(sizeof(struct Message), 16);
+    sub->queue = cq_init();
     pthread_mutex_init(&sub->mutex, NULL);
+    sub->active = false;
     return sub;
 }
 
 void subscriber_destroy(struct Subscriber *sub) {
-    circular_queue_destroy(sub->queue);
+    cq_destroy(sub->queue);
     pthread_mutex_destroy(&sub->mutex);
     free(sub);
 }
@@ -122,12 +118,15 @@ int unsubscribe(struct Publisher *pub, struct Subscriber *sub) {
  *      The message.
  * @return The number of subscriber published to.
  */
-int publish(struct Publisher *pub, uint8_t *msg, int len) {
+int publish(struct Publisher *pub, const char *buf, int len) {
     pthread_mutex_lock(&pub->mutex);
     
     int i = 0;
-    while(list_iterate(pub->subs, i) != NULL) {
-        subscriber_send(list_iterate(pub->subs, i), msg, len, pub);
+    struct Subscriber *sub;
+    while((sub = list_iterate(pub->subs, i)) != NULL) {
+        if (sub->active) {
+            subscriber_send(list_iterate(pub->subs, i), buf, len);
+        }
         i++;
     }
 
@@ -165,7 +164,7 @@ int publisher_get_subscriber_count(struct Publisher *pub) {
 int subscriber_get_message_count(struct Subscriber *sub) {
     pthread_mutex_lock(&sub->mutex);
 
-    int cnt = circular_queue_get_count(sub->queue);
+    int cnt = cq_get_count(sub->queue);
 
     pthread_mutex_unlock(&sub->mutex);
     return cnt;
@@ -181,7 +180,7 @@ int subscriber_get_message_count(struct Subscriber *sub) {
 bool subscriber_has_message(struct Subscriber *sub) {
     pthread_mutex_lock(&sub->mutex);
     
-    bool ret = !circular_queue_is_empty(sub->queue);
+    bool ret = !cq_is_empty(sub->queue);
     
     pthread_mutex_unlock(&sub->mutex);
     return ret;
@@ -193,24 +192,16 @@ bool subscriber_has_message(struct Subscriber *sub) {
  * 
  * @param sub
  *      The subscriber.
- * @param msg
- *      Message to get.
+ * @param buf
+ *      Buffer to read.
+ * @param len
+ *      Length of max read count.
  * @return Length of message, -1 if fail.
  */
-int subscriber_receive(struct Subscriber *sub, uint8_t *msg, struct Publisher **from_who) {
+int subscriber_receive(struct Subscriber *sub, char *buf, int len) {
     pthread_mutex_lock(&sub->mutex);
     
-    struct Message m;
-    int ret = -1;
-
-    if (circular_queue_dequeue(sub->queue, &m) != -1) {
-        ret = m.len;
-        memcpy(msg, m.buf, m.len);
-        
-        if (from_who != NULL) {
-            *from_who = m.from_who;
-        }
-    }
+    int ret = cq_dequeue(sub->queue, buf, len);
 
     pthread_mutex_unlock(&sub->mutex);
     return ret;
@@ -223,20 +214,30 @@ int subscriber_receive(struct Subscriber *sub, uint8_t *msg, struct Publisher **
  * 
  * @param sub 
  *      Subscriber.
- * @param msg
- *      Message struct to push to queue.
+ * @param buf
+ *      Buffer to publish.
+ * @param len
+ *      Length of buffer.
  * @return 0 if success else -1. 
  */
-int subscriber_send(struct Subscriber *sub, uint8_t *msg, int len, struct Publisher *from_who) {
+int subscriber_send(struct Subscriber *sub, const char *buf, int len) {
     pthread_mutex_lock(&sub->mutex);
 
-    struct Message m;
-    m.from_who = from_who;
-    m.len = len;
-    memcpy(m.buf, msg, len);
+    int ret = cq_enqueue(sub->queue, buf, len);
+    if (ret != len) {
+        LOG_ERROR("Queue is full, message probably lost.(ret: %d, len: %d)", ret, len);
+    }
+    pthread_mutex_unlock(&sub->mutex);
+    return ret;
+}
 
-    int ret = circular_queue_enqueue(sub->queue, &m);
-
+int subscriber_set_active(struct Subscriber *sub, bool active) {
+    int ret = -1;
+    pthread_mutex_lock(&sub->mutex);
+    if (sub->active != active) {
+        sub->active = active;
+        ret = 0;
+    }
     pthread_mutex_unlock(&sub->mutex);
     return ret;
 }

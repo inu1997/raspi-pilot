@@ -65,8 +65,9 @@ void *mavlink_udp_handler(void *arg) {
 
     int chan = mavlink_ocupy_usable_channel();
 
-    int w_len; // Length of write buffer.
+    int w_cnt; // Length of write buffer.
     char w_buf[256]; // Buffer for write.
+    int r_cnt;
     char r_buf[256]; // buffer for read.
     mavlink_message_t mav_msg; // mavlink message received.
     mavlink_status_t mav_status; // Mavlink message status.
@@ -92,19 +93,19 @@ void *mavlink_udp_handler(void *arg) {
         int i;
         // Send
         while (subscriber_has_message(sub)) {
-            if ((w_len = subscriber_receive(sub, w_buf, NULL)) > 0) {
+            if ((w_cnt = subscriber_receive(sub, w_buf, sizeof(w_buf))) > 0) {
                 // Send
-                if (sendto(sock_fd, w_buf, w_len, 0, (struct sockaddr*)&gc_addr, slen) < 0) {
+                if (sendto(sock_fd, w_buf, w_cnt, 0, (struct sockaddr*)&gc_addr, slen) < 0) {
                     LOG_ERROR("Error while write.\n");
                     goto CONNECTION_DIED;
                 } 
             }
         }
         // Read
-        int read_cnt = recvfrom(sock_fd, r_buf, sizeof(r_buf), 0, (struct sockaddr*)&gc_addr, &slen);
+        r_cnt = recvfrom(sock_fd, r_buf, sizeof(r_buf), 0, (struct sockaddr*)&gc_addr, &slen);
 
-        if (read_cnt > 0) {
-            for(i = 0; i < read_cnt; i++) {
+        if (r_cnt > 0) {
+            for(i = 0; i < r_cnt; i++) {
                 if (mavlink_parse_char(chan, r_buf[i], &mav_msg, &mav_status)) {
                     // GOT MESSAGE!
     #ifdef _DEBUG

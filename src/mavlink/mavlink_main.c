@@ -120,8 +120,9 @@ void *mavlink_connection_handler(void *mavlink_file) {
     DEBUG("Subscribing.\n");
     subscribe(mavlink_publisher, sub);
 
-    int w_len; // Length of write buffer.
+    int w_cnt; // Write count.
     char w_buf[256]; // Buffer for write.
+    int r_cnt; // Read count.
     char r_buf[256]; // buffer for read.
     mavlink_message_t r_msg; // mavlink message received.
     mavlink_status_t mav_status; // Mavlink message status.
@@ -137,9 +138,9 @@ void *mavlink_connection_handler(void *mavlink_file) {
         int i;
         // Send
         while (subscriber_has_message(sub)) {
-            if ((w_len = subscriber_receive(sub, w_buf, NULL)) > 0) {
+            if ((w_cnt = subscriber_receive(sub, w_buf, sizeof(w_buf))) > 0) {
                 // Send
-                if (write(connection->fd, w_buf, w_len) < 0) {
+                if (write(connection->fd, w_buf, w_cnt) < 0) {
                     LOG_ERROR("Error while write.\n");
                     if (connection->exit_on_error) {
                         goto CONNECTION_DIED;
@@ -150,11 +151,11 @@ void *mavlink_connection_handler(void *mavlink_file) {
             }
         }
         // Read
-        int read_cnt = read(connection->fd, r_buf, sizeof(r_buf));
+        r_cnt = read(connection->fd, r_buf, sizeof(r_buf));
         
-        if (read_cnt > 0) {
+        if (r_cnt > 0) {
 
-            for(i = 0; i < read_cnt; i++) {
+            for(i = 0; i < r_cnt; i++) {
 
                 if (mavlink_parse_char(connection->mav_channel, r_buf[i], &r_msg, &mav_status)) {
                     // GOT MESSAGE!
@@ -180,6 +181,7 @@ void *mavlink_connection_handler(void *mavlink_file) {
                         // Heartbeat received.
                         if (active == false) {
                             mavlink_on_connection_active();
+                            subscriber_set_active(sub, true);
                             active = true;
                         }
                         // Update timeval.
@@ -194,6 +196,7 @@ void *mavlink_connection_handler(void *mavlink_file) {
         if (tv_get_diff_sec_ul(&tv_since_last_hb, &now) >= 5) {
             if (active == true) {
                 mavlink_on_connection_inactive();
+                subscriber_set_active(sub, false);
                 active = false;
             }
         }

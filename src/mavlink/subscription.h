@@ -38,7 +38,7 @@ int unsubscribe(struct Publisher *pub, struct Subscriber *sub);
 
 //----- Poblisher
 
-int publish(struct Publisher *pub, uint8_t *msg, int len);
+int publish(struct Publisher *pub, const char *buf, int len);
 
 int publisher_get_subscriber_count(struct Publisher *pub);
 
@@ -47,10 +47,8 @@ int subscriber_get_message_count(struct Subscriber *sub);
 
 bool subscriber_has_message(struct Subscriber *sub);
 
-int subscriber_receive(struct Subscriber *sub, uint8_t *msg, struct Publisher **from_who);
+int subscriber_receive(struct Subscriber *sub, char *buf, int len);
 
-int subscriber_set_on_queue_full(struct Subscriber *sub, void (*on_full)());
-
-int subscriber_set_on_queue_empty(struct Subscriber *sub, void (*on_empty)());
+int subscriber_set_active(struct Subscriber *sub, bool active);
 
 #endif // _SUBSCRIPTION_H_
