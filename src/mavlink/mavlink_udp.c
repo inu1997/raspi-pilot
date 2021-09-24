@@ -62,6 +62,7 @@ void *mavlink_udp_handler(void *arg) {
     DEBUG("Creating subscriber.\n");
     struct Subscriber *sub = subscriber_init();
     subscribe(mavlink_publisher, sub);
+    subscriber_set_active(sub, true);
 
     int chan = mavlink_ocupy_usable_channel();
 
@@ -114,10 +115,15 @@ void *mavlink_udp_handler(void *arg) {
                     }
     #endif // _DEBUG
                     // Handle message.
-                    if ((mavlink_handler_handle_msg(&mav_msg)) == 0) {
-                        if (mav_msg.msgid != MAVLINK_MSG_ID_MANUAL_CONTROL) {
+                    if ((mavlink_handler_handle_msg(&r_msg)) == 0) {
+#ifdef _DEBUG
+                        if (r_msg.msgid != MAVLINK_MSG_ID_MANUAL_CONTROL && r_msg.msgid != MAVLINK_MSG_ID_HEARTBEAT) {
                             DEBUG("Handle success.\n");
+#endif // _DEBUG
+
                         }
+                    } else {
+                        LOG_ERROR("Handler failure.\n");
                     }
 
                     // Check heartbeat.
