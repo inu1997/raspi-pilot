@@ -1,6 +1,7 @@
 #include "circular_queue.h"
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 struct CircularQueue {
     void **buffer; // Buffer to store data.
@@ -22,15 +23,18 @@ struct CircularQueue {
 struct CircularQueue *circular_queue_init(int size, int capacity) {
     struct CircularQueue *q = malloc(sizeof(struct CircularQueue));
     assert(q != NULL);
+
     q->head = q->tail = 0;
     q->size = size;
     q->capacity = capacity + 1;
     // Make buffer
     q->buffer = malloc(sizeof(void*) * q->capacity);
+    assert(q->buffer != NULL);
     int i;
     for (i = 0; i < q->capacity; i++) {
         // Make space for every buffer element.
         q->buffer[i] = malloc(q->size);
+        assert(q->buffer[i] != NULL);
     }
     return q;
 }
