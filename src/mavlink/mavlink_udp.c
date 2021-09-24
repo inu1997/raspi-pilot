@@ -70,7 +70,7 @@ void *mavlink_udp_handler(void *arg) {
     char w_buf[256]; // Buffer for write.
     int r_cnt;
     char r_buf[256]; // buffer for read.
-    mavlink_message_t mav_msg; // mavlink message received.
+    mavlink_message_t r_msg; // mavlink message received.
     mavlink_status_t mav_status; // Mavlink message status.
     
     bool active = false; // Check if connection active/ inactive.
@@ -107,11 +107,11 @@ void *mavlink_udp_handler(void *arg) {
 
         if (r_cnt > 0) {
             for(i = 0; i < r_cnt; i++) {
-                if (mavlink_parse_char(chan, r_buf[i], &mav_msg, &mav_status)) {
+                if (mavlink_parse_char(chan, r_buf[i], &r_msg, &mav_status)) {
                     // GOT MESSAGE!
     #ifdef _DEBUG
-                    if (mav_msg.msgid != 0 && mav_msg.msgid != MAVLINK_MSG_ID_MANUAL_CONTROL) {
-                        DEBUG("Got message. sys_id: %d, comp_id: %d, seq: %d, msg_id: %d.\n", mav_msg.sysid, mav_msg.compid, mav_msg.seq, mav_msg.msgid);
+                    if (r_msg.msgid != 0 && r_msg.msgid != MAVLINK_MSG_ID_MANUAL_CONTROL) {
+                        DEBUG("Got message. sys_id: %d, comp_id: %d, seq: %d, msg_id: %d.\n", r_msg.sysid, r_msg.compid, r_msg.seq, r_msg.msgid);
                     }
     #endif // _DEBUG
                     // Handle message.
@@ -127,7 +127,7 @@ void *mavlink_udp_handler(void *arg) {
                     }
 
                     // Check heartbeat.
-                    if (mav_msg.msgid == 0) {
+                    if (r_msg.msgid == 0) {
                         // Heartbeat received.
                         if (active == false) {
                             mavlink_on_connection_active();
