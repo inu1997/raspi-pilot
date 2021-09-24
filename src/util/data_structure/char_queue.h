@@ -1,3 +1,16 @@
+/**
+ * @file char_queue.h
+ * @author DeltaDoggo 
+ * @brief Used as subscribe/publish design pattern queue.
+ * 
+ * 
+ * 
+ * @version 0.1
+ * @date 2021-09-24
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
 #ifndef _CHAR_QUEUE_H_
 #define _CHAR_QUEUE_H_
 

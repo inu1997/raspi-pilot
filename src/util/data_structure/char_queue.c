@@ -52,7 +52,7 @@ int cq_enqueue(struct CharQueue *q, const char *buf, int len) {
     int i;
     for(i = 0; (i < len) && !cq_is_full(q); i++) {
         q->buf[q->tail] = buf[i];
-        q->tail = (q->tail + 1) % sizeof(q->buf);
+        q->tail = (q->tail + 1) % CHAR_QUEUE_MAX_LENGTH;
     }
     return i;
 }
@@ -106,7 +106,7 @@ int cq_get_count(struct CharQueue *q) {
  * @return True if full else false. 
  */
 bool cq_is_full(struct CharQueue *q) {
-    return ((q->tail + 1) % sizeof(q->buf)) == q->head;
+    return ((q->tail + 1) % CHAR_QUEUE_MAX_LENGTH) == q->head;
 }
 
 /**
