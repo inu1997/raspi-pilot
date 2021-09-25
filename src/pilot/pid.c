@@ -6,6 +6,8 @@
 #include <string.h>
 #include <json-c/json.h>
 
+#include <assert.h>
+
 struct PID{
     float p; // parameter P
     float i; // parameter I
@@ -27,6 +29,8 @@ struct PID{
  */
 struct PID *pid_init(){
     struct PID *pid = malloc(sizeof(struct PID));
+    assert(pid != NULL);
+    
     memset(pid, 0, sizeof(struct PID));
 
     return pid;
