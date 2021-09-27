@@ -45,9 +45,9 @@ void loop_delay_control(){
     }
 
     // Check delay to make sure it's not over-delayed.
-    // if(usec > (unsigned long)(1e6f * _interval) + 10){
-    //     LOG_ERROR("Loop take too long, %d microseconds.\n", usec);
-    // }
+    if(usec > (unsigned long)(1e6f * _interval) + 10){
+        LOG_ERROR("Loop take too long, %d microseconds.\n", usec);
+    }
     
     // Update original timeval
     gettimeofday(&_orig_tv, NULL);

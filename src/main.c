@@ -29,7 +29,7 @@ int main() {
 
         parameter_lock_mutex();
         
-        // measurement_update();
+        measurement_update();
         
         // pilot_update();
 
@@ -51,11 +51,12 @@ int init(){
     }
     
     LOG("Initiating modules.\n");
+    
     // Initiate modules
-    // if (measurement_init() != 0){
-    //     LOG_ERROR("Failed to initiate Measurement.\n");
-    //     return -1;
-    // }
+    if (measurement_init() != 0){
+        LOG_ERROR("Failed to initiate Measurement.\n");
+        return -1;
+    }
 
     if (pilot_init() != 0){
         LOG_ERROR("Failed to initiate Pilot.\n");
@@ -68,11 +69,11 @@ int init(){
         return -1;
     }
 
-    // if (scheduler_init_real_time() != 0) {
-    //     LOG_ERROR("Failed to initiate Real Time.\n");
-    //     return -1;
-    // }
-    loop_init(100);
+    if (scheduler_init_real_time() != 0) {
+        LOG_ERROR("Failed to initiate Real Time.\n");
+        return -1;
+    }
+    loop_init(400);
 
     LOG("Done.\n");
     return 0;

@@ -67,7 +67,7 @@ struct TaskBlock tasks[] = {
     // TIMED_TASK(mavlink_stream_hb_imu, 1),
     // TIMED_TASK(mavlink_stream_hb_battery, 1),
     TIMED_TASK(mavlink_stream_attitude, 10),
-    // TIMED_TASK(mavlink_stream_sensor, 10),
+    TIMED_TASK(mavlink_stream_sensor, 10),
     TIMED_TASK(mavlink_stream_battery, 0.2)
 };
 
@@ -147,7 +147,7 @@ void mavlink_stream_hb_battery() {
     
     mavlink_msg_heartbeat_pack_chan(
         MAVLINK_SYS_ID,
-        MAV_COMP_ID_BATTERY,
+        MAV_COMP_ID_AUTOPILOT1,
         MAVLINK_COMM_0,
         &msg,
         0,
@@ -183,7 +183,7 @@ void mavlink_stream_sensor() {
     mavlink_message_t msg;
     mavlink_msg_hil_sensor_pack_chan(
         MAVLINK_SYS_ID,
-        MAV_COMP_ID_IMU,
+        MAV_COMP_ID_AUTOPILOT1,
         MAVLINK_COMM_0,
         &msg,
         tv_get_msec_since_epoch(),
@@ -211,7 +211,7 @@ void mavlink_stream_battery() {
     mavlink_message_t msg;
     mavlink_msg_battery_status_pack_chan(
         MAVLINK_SYS_ID,
-        MAV_COMP_ID_BATTERY,
+        MAV_COMP_ID_AUTOPILOT1,
         MAVLINK_COMM_0,
         &msg,
         0,

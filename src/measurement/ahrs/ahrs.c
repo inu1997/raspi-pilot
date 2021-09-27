@@ -97,12 +97,9 @@ void ahrs_update_6(float ax, float ay, float az, float gx, float gy, float gz) {
     float acc_r, acc_p;
     acc_r = roll_from_accel(ax, ay, az);
     acc_p = pitch_from_accel(ax, ay, az);
-    
-    acc_r = RAD_TO_DEG(acc_r);
-    acc_p = RAD_TO_DEG(acc_p);
 
-    _r = complementary_filter(_r, acc_r, gy, COMPLEMENTARY_ALPHA);
-    _p = complementary_filter(_p, acc_p, gz, COMPLEMENTARY_ALPHA);
+    _r = complementary_filter(_r, acc_r, gy * TO_RAD, COMPLEMENTARY_ALPHA);
+    _p = complementary_filter(_p, acc_p, gz * TO_RAD, COMPLEMENTARY_ALPHA);
     
 #endif // UPDATE_METHOD_COMPLEMENTARY
 

@@ -43,6 +43,7 @@ int spi_read_array(const char *dev, uint8_t reg_addr,uint8_t *buffer,  uint8_t n
     for(i = 0; i < n; i++) {
         buffer[i] = rx_buf[i + 1];
     }
+    ret = 0;
     EXIT:
     return ret;
 }
@@ -103,9 +104,13 @@ int spi_write_bit(const char *dev, uint8_t reg_addr, uint8_t data,  uint8_t nbit
         LOG_ERROR("Failed to read.\n");
         return -1;
     }
+
+    usleep(1000);
+    
     orig_data &= ~data_mask;
     orig_data |= data;
-    if (spi_write(dev, reg_addr, orig_data) != 0) {
+    
+    if (spi_write(dev, reg_addr, orig_data) < 0) {
         LOG_ERROR("Failed to write.\n");
         return -1;
     }
@@ -161,8 +166,12 @@ static int spi_transfer(const char *dev, uint8_t *tx, uint8_t *rx, uint8_t n) {
     }
 
     //----- Transfer.
-    ret = ioctl(spi_fd, SPI_IOC_MESSAGE(1), &_spi);
-
+    if ((ret = ioctl(spi_fd, SPI_IOC_MESSAGE(1), &_spi)) != n) {
+        LOG_ERROR("Transfer length doesn't match.(expect: %d, got: %d)\n", n, ret);
+        ret = -1;
+        goto EXIT;
+    }
+    ret = 0;
     EXIT:
     close(spi_fd);
     return ret;

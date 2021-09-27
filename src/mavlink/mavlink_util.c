@@ -122,9 +122,10 @@ void *mavlink_send_parameter_list_handler(void *arg) {
         LOG_ERROR("There is a trasmition currently running.\n");
         pthread_exit(NULL);
     }
-
+    LOG("Start sending parameters.\n");
     int i;
     int cnt = parameter_get_count_no_mutex();
+    LOG("Parameter count: %d.\n", cnt);
     for (i = 0; i < cnt; i++) {
         mavlink_send_parameter(parameter_keys[i]);
         usleep(100000);
@@ -133,6 +134,7 @@ void *mavlink_send_parameter_list_handler(void *arg) {
             break;
         }
     }
+    LOG("Parameter list transmition complete.\n");
     pthread_mutex_unlock(&mavlink_send_parameter_list_mutex);
     pthread_exit(NULL);
 }

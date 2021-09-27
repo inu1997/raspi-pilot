@@ -16,11 +16,10 @@
 
 //----- Configurations.
 #define COMPLEMENTARY_ALPHA 0.98
-#define IMU_CHOICE_MPU
-#define MAG_CHOICE_AK
-// #define MAG_CHOICE_HMC
+
 #define UPDATE_METHOD_MADGWICK
 // #define UPDATE_METHOD_COMPLEMENTARY
+
 #define SMA_BUFFER_LENGTH_A 2
 #define SMA_BUFFER_LENGTH_G 2
 #define SMA_BUFFER_LENGTH_M 3
@@ -48,11 +47,11 @@ struct SMAFilter *_sma_a[3]; // Simeple Moving Average Filter for Accelerometer.
 struct SMAFilter *_sma_g[3]; // Simeple Moving Average Filter for Gyro.
 struct SMAFilter *_sma_m[3]; // Simeple Moving Average Filter for Megnetometer.
 
-bool _mag_data_updated;
+bool _mag_data_updated; // True if magnetometer is updated in this loop else false.
 
 int imu_init_mpu();
+
 int imu_init_ak();
-int imu_init_hmc();
 
 /**
  * @brief Initiate IMU sensors.
@@ -63,24 +62,15 @@ int imu_init() {
     LOG("Initiating IMU.\n");
 
     LOG("Initiating modules.\n");
-#ifdef IMU_CHOICE_MPU
     if (imu_init_mpu() != 0) {
         LOG_ERROR("Failed to initiate MPU.\n");
         return -1;
     }
-#endif
-#ifdef MAG_CHOICE_AK
     if (imu_init_ak() != 0) {
         LOG_ERROR("Failed to initiate AK.\n");
         return -1;
     }
-#endif
-#ifdef MAG_CHOICE_HMC
-    if (imu_init_hmc() != 0) {
-        LOG_ERROR("Failed to initiate HMC.\n");
-        return -1;
-    }
-#endif
+
     calibration_load();
     
     LOG("Initiating variables.\n");
@@ -109,20 +99,15 @@ void imu_update() {
     int16_t g_read[3];
     int16_t m_read[3];
     float m_read_calibrated[3];
+    
+    mpu_read_all(
+        &a_read[0], &a_read[1], &a_read[2],
+        &g_read[0], &g_read[1], &g_read[2],
+        &_mag_data_updated,
+        &m_read[1], &m_read[0], &m_read[2]);
 
-#ifdef IMU_CHOICE_MPU
-    mpu_read_accel(&a_read[0], &a_read[1], &a_read[2]);
-    mpu_read_gyro(&g_read[0], &g_read[1], &g_read[2]);
-#endif // IMU_CHOICE_MPU
-
-#ifdef MAG_CHOICE_AK
-    // Swap x and y order since AK8963 embedded in MPU9250 does not match axis.
-    _mag_data_updated = ak_read_single(&m_read[1], &m_read[0], &m_read[2]) == 0;
-#endif // MAG_CHOICE_AK
-
-#ifdef MAG_CHOICE_HMC
-    _mag_data_updated = hml_update(&m_read[0], &m_read[1], &m_read[2]) == 0;
-#endif // MAG_CHOICE_HMC
+    // mpu_read_accel(&a_read[0], &a_read[1], &a_read[2]);
+    // mpu_read_gyro(&g_read[0], &g_read[1], &g_read[2]);
 
     // Update raw values, those variables are for debugging.
     _raw_a[0] = (float)a_read[0] / _scale_accel;
@@ -151,7 +136,7 @@ void imu_update() {
         _est_a[i] = sma_update(_sma_a[i], _raw_a[i]);
         _est_g[i] = sma_update(_sma_g[i], _raw_g[i]);
         if (_mag_data_updated) {
-            _est_m[i] = sma_update(_sma_m[i], (float)m_read_calibrated[i]);
+            _est_m[i] = sma_update(_sma_m[i], m_read_calibrated[i]);
         }
     }
 }
@@ -193,6 +178,7 @@ float imu_get_raw_mz() {return _raw_m[2];};
  * @return 0 if success else -1.
  */
 int imu_init_mpu() {
+    LOG("Initiating MPU.\n");
     if (mpu_init() != 0) {
         LOG_ERROR("Failed to init mpu.\n");
         return -1;
@@ -228,6 +214,7 @@ int imu_init_mpu() {
         return -1;
     }
     usleep(10000);
+    LOG("Done.\n");
     return 0;
 }
 
@@ -237,10 +224,13 @@ int imu_init_mpu() {
  * @return 0 if success else -1.
  */
 int imu_init_ak() {
-    if (mpu_enable_bypass() != 0) {
-        LOG_ERROR("Failed to enable bypass.\n");
+    LOG("Initiating AK8963.\n");
+    
+    if (mpu_enable_master_mode() != 0) {
+        LOG_ERROR("Failed to enable master mode.\n");
         return -1;
     }
+    
     usleep(10000);
     if (ak_init() != 0) {
         LOG_ERROR("Failed to init ak.\n");
@@ -260,20 +250,11 @@ int imu_init_ak() {
 #endif // IMU_CFG_AK_16_BIT
     usleep(10000);
 
-    if (ak_set_mode(AK_MODE_SINGLE_MEASUREMENT) != 0) {
+    if (ak_set_mode(AK_MODE_CONTINUOUS_MEASUREMENT_100HZ) != 0) {
         LOG_ERROR("Failed to set mode.\n");
         return -1;
     }
     usleep(10000);
-    
-    return 0;
-}
-
-/**
- * @brief Initate HMC module.
- * 
- * @return 0 if success else -1.
- */
-int imu_init_hmc() {
+    LOG("Done.\n");
     return 0;
 }
