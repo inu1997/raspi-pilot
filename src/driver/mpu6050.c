@@ -66,7 +66,11 @@ static uint8_t _dev_addr = 0x68; // Device address found.
 #define MPU_I2C_SLV0_REG 0x26
 #define MPU_I2C_SLV0_CTRL 0x27
 #define MPU_I2C_SLV0_DO 0x63
+#define MPU_I2C_SLV4_ADDR 0x31
+#define MPU_I2C_SLV4_REG 0x32
+#define MPU_I2C_SLV4_DO 0x33
 #define MPU_I2C_SLV4_CTRL 0x34
+#define MPU_I2C_SLV4_DI 0x35
 #define MPU_EXT_SENS_DATA_00 0x49
 
 #define MPU_WHO_AM_I 0x75
@@ -119,19 +123,6 @@ const float ACCEL_SCALE_TABLE[4] = {
  */
 int mpu_init(){
     LOG("Initiating MPU module.\n");
-
-#ifdef MPU_USE_SPI
-#else
-    if (i2c_device_exists(MPU_ADDRESS_AD0_HI)) {
-        _dev_addr = MPU_ADDRESS_AD0_HI;
-    } else if (i2c_device_exists(MPU_ADDRESS_AD0_LO)) {
-        _dev_addr = MPU_ADDRESS_AD0_LO;
-    } else {
-        LOG_ERROR("Failed to find MPU.\n");
-        return -1;
-    }
-    LOG("Find MPU Device at 0x%x.\n", _dev_addr);
-#endif // MPU_USE_SPI
     // Check WHO AM I
 
     uint8_t who_am_i;
@@ -155,10 +146,27 @@ int mpu_init(){
     return 0;
 }
 
-int mpu_read_all(int16_t *ax, int16_t *ay, int16_t *az,
-                int16_t *gx, int16_t *gy, int16_t *gz,
-                bool *mag_ready,
-                int16_t *mx, int16_t *my, int16_t *mz) {
+/**
+ * @brief Read all data at once.
+ * 
+ * @param ax Accelerometer reading x. 
+ * @param ay Accelerometer reading y. 
+ * @param az Accelerometer reading z. 
+ * @param gx Gyroscope reading x.
+ * @param gy Gyroscope reading y.
+ * @param gz Gyroscope reading z.
+ * @param mx Magnetometer reading x.
+ * @param my Magnetometer reading y.
+ * @param mz Magnetometer reading z.
+ * @param mag_ready 
+ *      True if AK8963 get new reading else false.
+ * @return 0 if success else -1.
+ */
+int mpu_read_all(
+    int16_t *ax, int16_t *ay, int16_t *az,
+    int16_t *gx, int16_t *gy, int16_t *gz,
+    int16_t *mx, int16_t *my, int16_t *mz,
+    bool *mag_ready) {
 
     // 0x0c: Address of AK8963.
     if (MPU_WRITE(MPU_I2C_SLV0_ADDR, 0x0c | 0x80) != 0) {
@@ -166,17 +174,17 @@ int mpu_read_all(int16_t *ax, int16_t *ay, int16_t *az,
         return -1;
     }
     // Start from AK_XOUTL
-    if (MPU_WRITE(MPU_I2C_SLV0_REG, 0x03) != 0) {
+    if (MPU_WRITE(MPU_I2C_SLV0_REG, 0x02) != 0) {
         LOG_ERROR("Failed to write reg.\n");
         return -1;
     }
-    if (MPU_WRITE(MPU_I2C_SLV0_CTRL, (0x87)) != 0) {
+    if (MPU_WRITE(MPU_I2C_SLV0_CTRL, (0x88)) != 0) {
         LOG_ERROR("Failed to write ctrl.\n");
         return -1;
     }
 
-    uint8_t buf[21]; // ACCEL: 6, TEMP: 2, GYRO:6, EXT MAG: 8.
-    MPU_READ_ARRAY(MPU_ACCEL_XOUT_H, buf, 21);
+    uint8_t buf[22]; // ACCEL: 6, TEMP: 2, GYRO:6, EXT MAG: 8.
+    MPU_READ_ARRAY(MPU_ACCEL_XOUT_H, buf, sizeof(buf));
 
 
     *ax = ((int16_t)buf[0] << 8) | buf[1];
@@ -188,18 +196,23 @@ int mpu_read_all(int16_t *ax, int16_t *ay, int16_t *az,
     *gz = ((int16_t)buf[12] << 8) | buf[13];
 
     *mag_ready = false;
-    if (!(buf[20] &0x08)) {
-        // NO OVERFLOW
-        *mx = ((int16_t)buf[15]) << 8 | buf[14];
-        *my = ((int16_t)buf[17]) << 8 | buf[16];
-        *mz = ((int16_t)buf[19]) << 8 | buf[18];
-        *mag_ready = true;
-    } else {
+
+    if (buf[14] & 0x01) {
+        // Data ready in ST1.
+        if (!(buf[21] &0x08)) {
+            // No overflow in ST2
+            *mx = ((int16_t)buf[16]) << 8 | buf[15];
+            *my = ((int16_t)buf[18]) << 8 | buf[17];
+            *mz = ((int16_t)buf[20]) << 8 | buf[19];
+            *mag_ready = true;
+        } else {
             LOG_ERROR("Overflow!\n");
+        }
     }
     
     return 0;
 }
+
 /**
  * @brief Get the sensor value in G.
  * 
@@ -507,13 +520,14 @@ int mpu_enable_master_mode() {
     }
     usleep(10000);
     
-    if ((ret = MPU_WRITE(MPU_I2C_MST_CTRL, 0x0d)) != 0) {
+    // Set 0x02 for 320kHz I2C speed. 
+    if ((ret = MPU_WRITE(MPU_I2C_MST_CTRL, 0x02)) != 0) {
         LOG_ERROR("Failed to set I2C_MST_CTRL.\n");
         goto EXIT;
     }
     usleep(10000);
     
-    // if ((ret = MPU_WRITE(MPU_I2C_DELAY_CTRL, 0x81)) != 0) {
+    // if ((ret = MPU_WRITE(MPU_I2C_DELAY_CTRL, 0x80)) != 0) {
     //     LOG_ERROR("Failed to set I2C_DELAY_CTRL.\n");
     //     goto EXIT;
     // }
@@ -565,23 +579,23 @@ bool mpu_is_using_i2c() {
 }
 
 //----- SLAVE0 RW Function.
-int mpu_slave0_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t data) {
-    if (MPU_WRITE(MPU_I2C_SLV0_ADDR, dev_addr) != 0) {
+int mpu_slave_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t data) {
+    if (MPU_WRITE(MPU_I2C_SLV4_ADDR, dev_addr) != 0) {
         LOG_ERROR("Failed to write addr.\n");
         return -1;
     }
     usleep(10000);
-    if (MPU_WRITE(MPU_I2C_SLV0_REG, reg_addr) != 0) {
+    if (MPU_WRITE(MPU_I2C_SLV4_REG, reg_addr) != 0) {
         LOG_ERROR("Failed to write reg.\n");
         return -1;
     }
     usleep(10000);
-    if (MPU_WRITE(MPU_I2C_SLV0_DO, data) != 0) {
+    if (MPU_WRITE(MPU_I2C_SLV4_DO, data) != 0) {
         LOG_ERROR("Failed to write data.\n");
         return -1;
     }
     usleep(10000);
-    if (MPU_WRITE(MPU_I2C_SLV0_CTRL, 0x81) != 0) {
+    if (MPU_WRITE(MPU_I2C_SLV4_CTRL, 0x80) != 0) {
         LOG_ERROR("Failed to write ctrl.\n");
         return -1;
     }
@@ -589,23 +603,23 @@ int mpu_slave0_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t data) {
     return 0;
 }
 
-int mpu_slave0_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data) {
-    if (MPU_WRITE(MPU_I2C_SLV0_ADDR, dev_addr | 0x80) != 0) {
+int mpu_slave_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data) {
+    if (MPU_WRITE(MPU_I2C_SLV4_ADDR, dev_addr | 0x80) != 0) {
         LOG_ERROR("Failed to write addr.\n");
         return -1;
     }
     usleep(10000);
-    if (MPU_WRITE(MPU_I2C_SLV0_REG, reg_addr) != 0) {
+    if (MPU_WRITE(MPU_I2C_SLV4_REG, reg_addr) != 0) {
         LOG_ERROR("Failed to write reg.\n");
         return -1;
     }
     usleep(10000);
-    if (MPU_WRITE(MPU_I2C_SLV0_CTRL, 0x81) != 0) {
+    if (MPU_WRITE(MPU_I2C_SLV4_CTRL, 0x80) != 0) {
         LOG_ERROR("Failed to write ctrl.\n");
         return -1;
     }
     usleep(10000);
-    if (MPU_READ(MPU_EXT_SENS_DATA_00, data) != 0) {
+    if (MPU_READ(MPU_I2C_SLV4_DI, data) != 0) {
         LOG_ERROR("Failed to read.\n");
         return -1;
     }
@@ -613,7 +627,7 @@ int mpu_slave0_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data) {
     return 0;
 }
 
-int mpu_slave0_read_array(uint8_t dev_addr, uint8_t reg_addr, uint8_t *buf, int len) {
+int mpu_slave_read_array(uint8_t dev_addr, uint8_t reg_addr, uint8_t *buf, int len) {
     if (MPU_WRITE(MPU_I2C_SLV0_ADDR, dev_addr | 0x80) != 0) {
         LOG_ERROR("Failed to write addr.\n");
         return -1;
@@ -637,20 +651,20 @@ int mpu_slave0_read_array(uint8_t dev_addr, uint8_t reg_addr, uint8_t *buf, int 
     return 0;
 }
 
-int mpu_slave0_write_bit(uint8_t dev_addr, uint8_t reg_addr, uint8_t data, uint8_t n_bit, uint8_t offset) {
+int mpu_slave_write_bit(uint8_t dev_addr, uint8_t reg_addr, uint8_t data, uint8_t n_bit, uint8_t offset) {
     uint8_t mask, data_mask;
     mask = (1 << n_bit) - 1;
     data_mask = mask << offset;
     data = (data & mask) << offset;
     
     uint8_t orig_data;
-    if (mpu_slave0_read(dev_addr, reg_addr, &orig_data) != 0) {
+    if (mpu_slave_read(dev_addr, reg_addr, &orig_data) != 0) {
         printf("Failed to read.\n");
         return -1;
     }
     orig_data &= ~data_mask;
     orig_data |= data;
-    if (mpu_slave0_write(dev_addr, reg_addr, orig_data) != 0) {
+    if (mpu_slave_write(dev_addr, reg_addr, orig_data) != 0) {
         printf("Failed to write.\n");
         return -1;
     }
@@ -658,9 +672,9 @@ int mpu_slave0_write_bit(uint8_t dev_addr, uint8_t reg_addr, uint8_t data, uint8
     return 0;
 }
 
-int mpu_slave0_read_bit(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t n_bit, uint8_t offset) {
+int mpu_slave_read_bit(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t n_bit, uint8_t offset) {
     uint8_t orig_data;
-    if (mpu_slave0_read(dev_addr, reg_addr, &orig_data) != 0) {
+    if (mpu_slave_read(dev_addr, reg_addr, &orig_data) != 0) {
         printf("Failed to read.\n");
         return -1;
     }

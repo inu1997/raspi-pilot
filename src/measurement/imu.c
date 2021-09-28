@@ -49,6 +49,8 @@ struct SMAFilter *_sma_m[3]; // Simeple Moving Average Filter for Megnetometer.
 
 bool _mag_data_updated; // True if magnetometer is updated in this loop else false.
 
+bool _mag_enabled;
+
 int imu_init_mpu();
 
 int imu_init_ak();
@@ -61,7 +63,6 @@ int imu_init_ak();
 int imu_init() {
     LOG("Initiating IMU.\n");
 
-    LOG("Initiating modules.\n");
     if (imu_init_mpu() != 0) {
         LOG_ERROR("Failed to initiate MPU.\n");
         return -1;
@@ -84,6 +85,7 @@ int imu_init() {
         
         _sma_m[i] = sma_init(SMA_BUFFER_LENGTH_M);
     }
+    _mag_enabled = true;
     _mag_data_updated = false;
     LOG("Done.\n");
     return 0;
@@ -100,14 +102,20 @@ void imu_update() {
     int16_t m_read[3];
     float m_read_calibrated[3];
     
-    mpu_read_all(
-        &a_read[0], &a_read[1], &a_read[2],
-        &g_read[0], &g_read[1], &g_read[2],
-        &_mag_data_updated,
-        &m_read[1], &m_read[0], &m_read[2]);
+    if (_mag_enabled) {
 
-    // mpu_read_accel(&a_read[0], &a_read[1], &a_read[2]);
-    // mpu_read_gyro(&g_read[0], &g_read[1], &g_read[2]);
+        mpu_read_all(
+            &a_read[0], &a_read[1], &a_read[2],
+            &g_read[0], &g_read[1], &g_read[2],
+            &m_read[1], &m_read[0], &m_read[2], // Swap 0 and 1 since AK8963 doesn't match MPU9250's XYZ axis.
+            &_mag_data_updated);
+    } else {
+
+        _mag_data_updated = false;
+        mpu_read_accel(&a_read[0], &a_read[1], &a_read[2]);
+        mpu_read_gyro(&g_read[0], &g_read[1], &g_read[2]);
+    }
+
 
     // Update raw values, those variables are for debugging.
     _raw_a[0] = (float)a_read[0] / _scale_accel;
@@ -150,6 +158,14 @@ bool imu_mag_data_updated() {
     return _mag_data_updated;
 }
 
+void imu_set_mag_enable(bool enable) {
+    _mag_enabled = enable;
+}
+
+bool imu_mag_is_enabled() {
+    return _mag_enabled;
+}
+
 float imu_get_ax() {return _est_a[0];}
 float imu_get_ay() {return _est_a[1];}
 float imu_get_az() {return _est_a[2];}
@@ -183,37 +199,37 @@ int imu_init_mpu() {
         LOG_ERROR("Failed to init mpu.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     if (mpu_set_dlpf(IMU_CFG_MPU_DLPF) != 0) {
         LOG_ERROR("Failed to set DLPF.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     if ((_scale_gyro = mpu_set_gyro_fullscale(IMU_CFG_MPU_GYRO_FS)) == 0.0f) {
         LOG_ERROR("Failed to set gyro fullscale.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     if (mpu_set_gyro_fchoice(IMU_CFG_MPU_GYRO_FCHOICE) != 0) {
         LOG_ERROR("Failed to set gyro fchoice.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     if ((_scale_accel = mpu_set_accel_fullscale(IMU_CFG_MPU_ACCEL_FS)) == 0.0f) {
         LOG_ERROR("Failed to set accel fullscale.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     if (mpu_set_accel_fchoice(IMU_CFG_MPU_ACCEL_FCHOICE != 0)) {
         LOG_ERROR("Failed to set accel fchoice.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     if (mpu_set_accel_dlpf(IMU_CFG_MPU_ACCEL_DLPF) != 0) {
         LOG_ERROR("Failed to set accel dlpf.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     LOG("Done.\n");
     return 0;
 }
@@ -231,12 +247,12 @@ int imu_init_ak() {
         return -1;
     }
     
-    usleep(10000);
+    usleep(1000);
     if (ak_init() != 0) {
         LOG_ERROR("Failed to init ak.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
 #ifdef IMU_CFG_AK_16_BIT
     if (ak_set_16_bit() != 0) {
         LOG_ERROR("Failed to set 16 bit mode.\n");
@@ -248,13 +264,13 @@ int imu_init_ak() {
         return -1;
     }
 #endif // IMU_CFG_AK_16_BIT
-    usleep(10000);
+    usleep(1000);
 
     if (ak_set_mode(AK_MODE_CONTINUOUS_MEASUREMENT_100HZ) != 0) {
         LOG_ERROR("Failed to set mode.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     LOG("Done.\n");
     return 0;
 }

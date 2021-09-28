@@ -43,10 +43,11 @@ extern const float ACCEL_SCALE_TABLE[4];
 
 int mpu_init();
 
-int mpu_read_all(int16_t *ax, int16_t *ay, int16_t *az,
-                int16_t *gx, int16_t *gy, int16_t *gz,
-                bool *mag_ready,
-                int16_t *mx, int16_t *my, int16_t *mz);
+int mpu_read_all(
+    int16_t *ax, int16_t *ay, int16_t *az,
+    int16_t *gx, int16_t *gy, int16_t *gz,
+    int16_t *mx, int16_t *my, int16_t *mz,
+    bool *mag_ready);
 
 int mpu_read_accel(int16_t *x, int16_t *y, int16_t *z);
 
@@ -96,19 +97,15 @@ bool mpu_is_using_spi();
 
 bool mpu_is_using_i2c();
 
-int mpu_ak_request();
-
-int mpu_ak_read(int16_t *x, int16_t *y, int16_t *z);
-
 //----- SLAVE0 RW Function.
-int mpu_slave0_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t data);
+int mpu_slave_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t data);
 
-int mpu_slave0_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data);
+int mpu_slave_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data);
 
-int mpu_slave0_read_array(uint8_t dev_addr, uint8_t reg_addr, uint8_t *buf, int len);
+int mpu_slave_read_array(uint8_t dev_addr, uint8_t reg_addr, uint8_t *buf, int len);
 
-int mpu_slave0_write_bit(uint8_t dev_addr, uint8_t reg_addr, uint8_t data, uint8_t n_bit, uint8_t offset);
+int mpu_slave_write_bit(uint8_t dev_addr, uint8_t reg_addr, uint8_t data, uint8_t n_bit, uint8_t offset);
 
-int mpu_slave0_read_bit(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t n_bit, uint8_t offset);
+int mpu_slave_read_bit(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, uint8_t n_bit, uint8_t offset);
 
 #endif // _MPU6050_H_

@@ -9,6 +9,10 @@ void imu_update();
 
 bool imu_mag_data_updated();
 
+void imu_set_mag_enable(bool enable);
+
+bool imu_mag_is_enabled();
+
 float imu_get_ax();
 float imu_get_ay();
 float imu_get_az();

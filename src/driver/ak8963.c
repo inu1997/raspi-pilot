@@ -22,23 +22,16 @@
 #define AK_ASAZ 0x12 // AK8963 ASA Z.
 
 
-static int ak_spi_read_array(uint8_t reg, uint8_t *data, int n);
-static int ak_spi_write(uint8_t reg, uint8_t data);
-static int ak_spi_read(uint8_t reg, uint8_t *data);
-static int ak_spi_write_bit(uint8_t reg, uint8_t data, uint8_t n, uint8_t offset);
-static int ak_spi_read_bit(uint8_t reg, uint8_t *data, uint8_t n, uint8_t offset);
-
-#define AK8963_USE_SPI
-
+#define AK8963_USE_SPI // Uncommend to enable I2C spi.
 
 #ifdef AK8963_USE_SPI
 // Use SPI.
 #include "mpu6050.h"
-#define AK_WRITE(reg, data) mpu_slave0_write(AK_ADDRESS, reg, data)
-#define AK_READ(reg, data) mpu_slave0_read(AK_ADDRESS, reg, data)
-#define AK_READ_ARRAY(reg, data, n) mpu_slave0_read_array(AK_ADDRESS, reg, data, n)
-#define AK_WRITE_BIT(reg, data, n, offset) mpu_slave0_write_bit(AK_ADDRESS, reg, data, n, offset)
-#define AK_READ_BIT(reg, data, n, offset) mpu_slave0_read_bit(AK_ADDRESS, reg, data, n, offset)
+#define AK_WRITE(reg, data) mpu_slave_write(AK_ADDRESS, reg, data)
+#define AK_READ(reg, data) mpu_slave_read(AK_ADDRESS, reg, data)
+#define AK_READ_ARRAY(reg, data, n) mpu_slave_read_array(AK_ADDRESS, reg, data, n)
+#define AK_WRITE_BIT(reg, data, n, offset) mpu_slave_write_bit(AK_ADDRESS, reg, data, n, offset)
+#define AK_READ_BIT(reg, data, n, offset) mpu_slave_read_bit(AK_ADDRESS, reg, data, n, offset)
 
 #else
 // Use I2C.
@@ -57,15 +50,6 @@ static int ak_spi_read_bit(uint8_t reg, uint8_t *data, uint8_t n, uint8_t offset
  */
 int ak_init(){
     LOG("Initiating AK8963.\n");
-#ifdef AK8963_USE_SPI
-#else
-    if (!i2c_device_exists(AK_ADDRESS)) {
-        LOG_ERROR("Failed to find AK8963.\n");
-        return -1;
-    }
-    
-#endif // AK8963_USE_SPI
-    
     // Check WIA.
     uint8_t wia;
     if (AK_READ(AK_WIA, &wia) != 0) {
@@ -73,15 +57,15 @@ int ak_init(){
         return -1;
     }
     if (wia != 0x48) {
-        LOG_ERROR("WIA doesn't match.(WIA: 0x%02x)\n", wia);
+        LOG_ERROR("WIA doesn't match.(Expect: 0x48, got: 0x%02x)\n", wia);
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
 
     // Reset.
     LOG("Resetting...\n");
     ak_reset();
-    usleep(10000);
+    usleep(1000);
     LOG("Done.\n");
     return 0;
 }
