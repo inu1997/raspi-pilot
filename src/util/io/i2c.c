@@ -21,8 +21,10 @@
 */
 bool i2c_device_exists(uint8_t dev_addr){
     bool ret = false;
-    int fd = -1;
+
+    int fd = -1; // I2C file descriptor.
     int reg_addr = 0x01;    // for test
+    
     fd = open(I2C_PATH, O_RDWR);
     if (fd < 0){
         LOG_ERROR("Failed to open i2c.\n");
@@ -63,27 +65,30 @@ int i2c_write_array(uint8_t dev_addr, uint8_t reg_addr,uint8_t *buffer,  uint8_t
     }
     
     int ret = -1;
-    int fd; // I2C File Descriptor.
+    int fd; // I2C file descriptor.
     uint8_t _buf[128]; // Buffer to write through I2C.
-    int w_cnt;  // Write Count.
+    int w_cnt;  // Write count.
     
-    //----- Open device
+    // Open device.
     fd = open(I2C_PATH, O_RDWR);
     if (fd < 0){
         LOG_ERROR("Failed to open i2c.\n");
         goto EXIT;
     }
-    if (ioctl(fd, I2C_SLAVE, dev_addr) < 0){
+
+    // Open I2C device.
+    if ((ret = ioctl(fd, I2C_SLAVE, dev_addr)) < 0){
         LOG_ERROR("Failed to open device. Address: %d\n", dev_addr);
         goto EXIT;
     }
     
-    //----- Write to device
+    // Write to device
+    // Prepare buffer.
     _buf[0] = reg_addr;
     memcpy(_buf + 1, buffer, n);
-    w_cnt = write(fd, _buf, n + 1);
-    if (w_cnt != n + 1){
-        LOG_ERROR("Failed to write to device. Address: %d\n", dev_addr);
+    // Write out.
+    if ((w_cnt = write(fd, _buf, n + 1)) != n + 1){
+        LOG_ERROR("Write count doesn't match.(Expect: %d, got: %d)\n", n + 1, w_cnt);
         goto EXIT;
     }
 
@@ -109,23 +114,26 @@ int i2c_write_array(uint8_t dev_addr, uint8_t reg_addr,uint8_t *buffer,  uint8_t
 int i2c_read_array(uint8_t dev_addr, uint8_t reg_addr,uint8_t *buffer,  uint8_t n) {
     int ret = -1;
 
+    // Open I2C device.
     int fd = open(I2C_PATH, O_RDWR);
     if (fd < 0) {
         LOG_ERROR("Failed to open i2c.\n");
         goto EXIT;
     }
-    if (ioctl(fd, I2C_SLAVE, dev_addr) < 0){
-        LOG_ERROR("Failed to open device. Address: %d\n", dev_addr);
+    // Open I2C device.
+    if ((ret = ioctl(fd, I2C_SLAVE, dev_addr)) < 0){
+        LOG_ERROR("Failed to open device.(Address: %d)\n", dev_addr);
         goto EXIT;
     }
+    // Write register address.
     if (write(fd, &reg_addr, 1) != 1) {
-        LOG_ERROR("Failed to write register. Address: %d\n", reg_addr);
+        LOG_ERROR("Failed to write register.(Address: %d)\n", reg_addr);
         goto EXIT;
     }
-
-    int r_cnt = read(fd, buffer, n);
-    if (r_cnt != n) {
-        LOG_ERROR("Failed to read device.\n");
+    // Read.
+    int r_cnt;
+    if ((r_cnt = read(fd, buffer, n)) != n) {
+        LOG_ERROR("Read count doesn't match.(Expect: %d, got: %d).\n", n, r_cnt);
         goto EXIT;
     }
     
@@ -181,24 +189,24 @@ int i2c_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data) {
  * @return 0 if success, else -1.
  */
 int i2c_write_bit(uint8_t dev_addr, uint8_t reg_addr, uint8_t data,  uint8_t nbit, uint8_t offset) {
-    uint8_t mask, data_mask;
-    mask = (1 << nbit) - 1;
-    data_mask = mask << offset;
-    data = (data & mask) << offset;
-    
+    int ret;
     uint8_t orig_data;
-    if (i2c_read(dev_addr, reg_addr, &orig_data) != 0) {
+    if ((ret = i2c_read(dev_addr, reg_addr, &orig_data)) != 0) {
         LOG_ERROR("Failed to read.\n");
-        return -1;
-    }
-    orig_data &= ~data_mask;
-    orig_data |= data;
-    if (i2c_write(dev_addr, reg_addr, orig_data) != 0) {
+        goto EXIT;
+    };
+
+    uint8_t mask = (1 << nbit) - 1; // Mask for nbit.
+    orig_data &= ~(mask << offset); // Clear bits.
+    orig_data |= (data & mask) << offset; // Set bits.
+    
+    if ((ret = i2c_write(dev_addr, reg_addr, orig_data)) != 0) {
         LOG_ERROR("Failed to write.\n");
-        return -1;
+        goto EXIT;
     }
 
-    return 0;
+    EXIT:
+    return ret;
 }
 
 /**
@@ -222,8 +230,9 @@ int i2c_read_bit(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data,  uint8_t nbi
         LOG_ERROR("Failed to read.\n");
         return -1;
     }
-    uint8_t data_mask = ((1 << nbit) - 1);
-    *data = (orig_data >> offset) & data_mask;
+
+    uint8_t mask = (1 << nbit) - 1;
+    *data = (orig_data >> offset) & mask; // Crop out unnecessary bits.
     
     return 0;
 }
