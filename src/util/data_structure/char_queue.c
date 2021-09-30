@@ -34,6 +34,16 @@ void cq_destroy(struct CharQueue *q) {
 }
 
 /**
+ * @brief Reset a queue by setting head and tail to ZERO.
+ * 
+ * @param q 
+ *      Queue to reset.
+ */
+void cq_reset(struct CharQueue *q) {
+    q->head = q->tail = 0;
+}
+
+/**
  * @brief Enqueue a char queue structure.
  * 
  * @param q 

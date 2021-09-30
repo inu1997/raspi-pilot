@@ -56,22 +56,42 @@ static uint8_t _dev_addr = 0x68; // Device address found.
 #define MPU_GYRO_ZOUT_H 0x47
 #define MPU_GYRO_ZOUT_L 0x48
 
+#define MPU_EXT_SENS_DATA_00 0x49
+
 #define MPU_PWR_MGMT 0x6b
 #define MPU_PWR_MGMT_2 0x6c
 
 #define MPU_USER_CTRL 0x6a
 #define MPU_I2C_DELAY_CTRL 0x67
 #define MPU_I2C_MST_CTRL 0x24
+
 #define MPU_I2C_SLV0_ADDR 0x25
-#define MPU_I2C_SLV0_REG 0x26
+#define MPU_I2C_SLV0_REG  0x26
 #define MPU_I2C_SLV0_CTRL 0x27
-#define MPU_I2C_SLV0_DO 0x63
+
+#define MPU_I2C_SLV1_ADDR 0x28
+#define MPU_I2C_SLV1_REG  0x29
+#define MPU_I2C_SLV1_CTRL 0x2a
+
+#define MPU_I2C_SLV2_ADDR 0x2b
+#define MPU_I2C_SLV2_REG  0x2c
+#define MPU_I2C_SLV2_CTRL 0x2d
+
+#define MPU_I2C_SLV3_ADDR 0x2e
+#define MPU_I2C_SLV3_REG  0x2f
+#define MPU_I2C_SLV3_CTRL 0x30
+
 #define MPU_I2C_SLV4_ADDR 0x31
-#define MPU_I2C_SLV4_REG 0x32
-#define MPU_I2C_SLV4_DO 0x33
+#define MPU_I2C_SLV4_REG  0x32
+#define MPU_I2C_SLV4_DO   0x33
 #define MPU_I2C_SLV4_CTRL 0x34
-#define MPU_I2C_SLV4_DI 0x35
-#define MPU_EXT_SENS_DATA_00 0x49
+#define MPU_I2C_SLV4_DI   0x35
+
+#define MPU_I2C_SLV0_DO 0x63
+#define MPU_I2C_SLV1_DO 0x64
+#define MPU_I2C_SLV2_DO 0x65
+#define MPU_I2C_SLV3_DO 0x66
+
 
 #define MPU_WHO_AM_I 0x75
 
@@ -512,32 +532,40 @@ int mpu_enable_master_mode() {
         LOG_ERROR("Failed to disable bypass.(ret: %d)\n", ret);
         goto EXIT;
     }
-    usleep(10000);
+    usleep(1000);
     
+    // Reset I2C_MST
+    if ((ret = MPU_WRITE(MPU_USER_CTRL, 0x02)) != 0) {
+        LOG_ERROR("Failed to reset I2C master mode.\n");
+        goto EXIT;
+    }
+    usleep(1000);
+
     if ((ret = MPU_WRITE(MPU_USER_CTRL, 0x20)) != 0) {
         LOG_ERROR("Failed to set USER_CTRL.\n");
         goto EXIT;
     }
-    usleep(10000);
+    usleep(1000);
     
     // Set 0x02 for 320kHz I2C speed. 
     if ((ret = MPU_WRITE(MPU_I2C_MST_CTRL, 0x02)) != 0) {
         LOG_ERROR("Failed to set I2C_MST_CTRL.\n");
         goto EXIT;
     }
-    usleep(10000);
+    usleep(1000);
     
     // if ((ret = MPU_WRITE(MPU_I2C_DELAY_CTRL, 0x80)) != 0) {
     //     LOG_ERROR("Failed to set I2C_DELAY_CTRL.\n");
     //     goto EXIT;
     // }
-    // usleep(10000);
+    // usleep(1000);
     
     // if ((ret = MPU_WRITE(MPU_I2C_SLV4_CTRL, 0x01)) != 0) {
     //     LOG_ERROR("Failed to set I2C_SLV4_CTRL.\n");
     //     goto EXIT;
     // }
-    usleep(10000);
+    // usleep(1000);
+
     EXIT:
     return ret;
 }
@@ -552,7 +580,7 @@ int mpu_reset() {
         LOG_ERROR("Failed to reset.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     return 0;
 }
 
@@ -584,22 +612,22 @@ int mpu_slave_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t data) {
         LOG_ERROR("Failed to write addr.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     if (MPU_WRITE(MPU_I2C_SLV4_REG, reg_addr) != 0) {
         LOG_ERROR("Failed to write reg.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     if (MPU_WRITE(MPU_I2C_SLV4_DO, data) != 0) {
         LOG_ERROR("Failed to write data.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     if (MPU_WRITE(MPU_I2C_SLV4_CTRL, 0x80) != 0) {
         LOG_ERROR("Failed to write ctrl.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     return 0;
 }
 
@@ -608,22 +636,22 @@ int mpu_slave_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data) {
         LOG_ERROR("Failed to write addr.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     if (MPU_WRITE(MPU_I2C_SLV4_REG, reg_addr) != 0) {
         LOG_ERROR("Failed to write reg.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     if (MPU_WRITE(MPU_I2C_SLV4_CTRL, 0x80) != 0) {
         LOG_ERROR("Failed to write ctrl.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     if (MPU_READ(MPU_I2C_SLV4_DI, data) != 0) {
         LOG_ERROR("Failed to read.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     return 0;
 }
 
@@ -632,22 +660,22 @@ int mpu_slave_read_array(uint8_t dev_addr, uint8_t reg_addr, uint8_t *buf, int l
         LOG_ERROR("Failed to write addr.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     if (MPU_WRITE(MPU_I2C_SLV0_REG, reg_addr) != 0) {
         LOG_ERROR("Failed to write reg.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     if (MPU_WRITE(MPU_I2C_SLV0_CTRL, (0x80 | len)) != 0) {
         LOG_ERROR("Failed to write ctrl.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     if (MPU_READ_ARRAY(MPU_EXT_SENS_DATA_00, buf, len) != 0) {
         LOG_ERROR("Failed to read.\n");
         return -1;
     }
-    usleep(10000);
+    usleep(1000);
     return 0;
 }
 

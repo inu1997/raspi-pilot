@@ -1,4 +1,5 @@
 #include "measurement.h"
+#include "calibration.h"
 #include "util/logger.h"
 
 /**
@@ -56,6 +57,20 @@ void measurement_update() {
             imu_get_gy(),
             imu_get_gz()
         );
+    }
+    if (calibration_gyro_gathering_is_enabled()) {
+        calibration_gather_raw_gyro(
+            imu_get_raw_gx(),
+            imu_get_raw_gy(),
+            imu_get_raw_gz());
+    }
+    if (calibration_mag_gathering_is_enabled()) {
+        if (imu_mag_data_updated()) {
+            calibration_gather_raw_mag(
+                imu_get_raw_mx(),
+                imu_get_raw_my(),
+                imu_get_raw_mz());
+        }
     }
     battery_update();
 }

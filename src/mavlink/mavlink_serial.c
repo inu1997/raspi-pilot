@@ -41,10 +41,10 @@ int mavlink_init_serial(const char *dev) {
     t.c_cc[VTIME] = 0;
 
     // Attributes
-    t.c_iflag &= ~(BRKINT | ICRNL | IMAXBEL);
-    t.c_oflag &= ~(OPOST);
+    t.c_iflag &= ~(BRKINT | ICRNL | IMAXBEL | IXON | IXOFF);
+    t.c_oflag &= ~(OPOST | ONLCR);
     t.c_lflag &= ~(ISIG | ICANON | IEXTEN | ECHO | ECHOE | ECHOK | ECHOCTL | ECHOKE);
-
+    t.c_cc[VMIN] = 0;
     tcsetattr(fd, TCSANOW, &t);
     
     struct MAVLinkFile *connection = malloc(sizeof(struct MAVLinkFile));

@@ -66,8 +66,8 @@ struct TaskBlock tasks[] = {
     TIMED_TASK(mavlink_stream_hb_camera, 1),
     // TIMED_TASK(mavlink_stream_hb_imu, 1),
     // TIMED_TASK(mavlink_stream_hb_battery, 1),
-    TIMED_TASK(mavlink_stream_attitude, 10),
-    TIMED_TASK(mavlink_stream_sensor, 10),
+    TIMED_TASK(mavlink_stream_attitude, 5),
+    TIMED_TASK(mavlink_stream_sensor, 5),
     TIMED_TASK(mavlink_stream_battery, 0.2)
 };
 

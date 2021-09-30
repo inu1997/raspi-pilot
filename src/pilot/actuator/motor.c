@@ -1,4 +1,6 @@
 #include "motor.h"
+#include "servo.h"
+
 #include "driver/pca9685.h"
 
 #include "util/logger.h"
@@ -7,9 +9,6 @@
 #include "util/parameter.h"
 
 #include <stdlib.h>
-
-static int _pwm_max;
-static int _pwm_min;
 
 /**
  * @brief Initiator of motor.
@@ -30,13 +29,9 @@ int motor_init(){
     }
 
     //----- Variables
-    int freq, max, min;
+    int freq;
     parameter_get_value_no_mutex(parameter_keys[PARAMETER_MTR_PWM_FREQ], &freq);
-    parameter_get_value_no_mutex(parameter_keys[PARAMETER_MTR_PWM_MAX], &max);
-    parameter_get_value_no_mutex(parameter_keys[PARAMETER_MTR_PWM_MIN], &min);
     motor_set_pwm_freq(freq);
-    motor_set_pwm_max(max);
-    motor_set_pwm_min(min);
     
     return 0;
 }
@@ -55,8 +50,9 @@ int motor_set(int chan, float throttle) {
     if (throttle == 0.0) {
         pca_set_pwm(chan, 0);
     } else {
-        int width = (float)_pwm_min + (float)(_pwm_max - _pwm_min) * (throttle / 100.0f);
-        pca_set_pwm(chan, width);
+        pca_set_pwm(chan, 
+            LIMIT_MAX_MIN((int)4095.0 * throttle / 100.0,
+                4095, 0));
     }
     return 0;
 }
@@ -85,21 +81,5 @@ void motor_turn_off_all(){
 //----- PWM Settings.
 
 void motor_set_pwm_freq(int freq) {
-    pca_set_frequency(freq);
-}
-
-void motor_set_pwm_max(int max) {
-    _pwm_max = max;
-}
-
-int motor_get_pwm_max() {
-    return _pwm_max;
-}
-
-void motor_set_pwm_min(int min) {
-    _pwm_min = min;
-}
-
-int motor_get_pwm_min() {
-    return _pwm_min;
+    servo_set_freq(freq);
 }

@@ -28,7 +28,7 @@ extern struct PID *pidsetting_alt; // Altitude hold PID.
 
 int controller_init();
 
-void controller_update(uint8_t mode, float thr, float avz);
+void controller_update(uint8_t mode, float thr, float avz, float heading);
 
 void controller_reset();
 

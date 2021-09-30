@@ -147,8 +147,23 @@ int mavlink_handle_manual_control() {
         return -1;
     }
 
-    // DEBUG("Target: %d, X: %d, Y: %d, Z: %d, R: %d. Buttons: 0x%04x\n", decoded.target, decoded.x, decoded.y, decoded.z, decoded.r, decoded.buttons);
+    // DEBUG(
+    //     "X: %5d, Y: %5d, Z: %5d, R: %5d, S: %5d, T: %5d, Buttons: 0x%04x,  Buttons2: 0x%04x.\n", 
+    //     decoded.x, 
+    //     decoded.y, 
+    //     decoded.z, 
+    //     decoded.r, 
+    //     decoded.s,
+    //     decoded.t,
+    //     decoded.buttons,
+    //     decoded.buttons2);
+    
     // map values to controller.
+    pilot_handle_menual(
+        decoded.x, decoded.y, decoded.z, 
+        decoded.r, decoded.s, decoded.t, 
+        decoded.buttons,
+        decoded.buttons2);
 
     return 0;
 }

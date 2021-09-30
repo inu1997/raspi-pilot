@@ -22,6 +22,8 @@ struct CharQueue *cq_init();
 
 void cq_destroy(struct CharQueue *q);
 
+void cq_reset(struct CharQueue *q);
+
 int cq_enqueue(struct CharQueue *q, const char *buf, int len);
 
 int cq_dequeue(struct CharQueue *q, char *buf, int len);

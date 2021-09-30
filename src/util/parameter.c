@@ -14,11 +14,11 @@
 
 const char *parameter_keys[] = {
     "MTR_PWM_FREQ",
-    "MTR_PWM_MAX",
-    "MTR_PWM_MIN",
-    "MANUAL_AX_MAX",
-    "MANUAL_AY_MAX",
-    "MANUAL_AVZ_MAX",
+    "MANUAL_THR_MAX",
+    "MANUAL_THR_MIN",
+    "MANUAL_AVX_RAN",
+    "MANUAL_AVY_RAN",
+    "MANUAL_AVZ_RAN",
     "CALIB_OFFSET_GX",
     "CALIB_OFFSET_GY",
     "CALIB_OFFSET_GZ",

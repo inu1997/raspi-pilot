@@ -14,16 +14,12 @@
 #ifndef _SERVO_H_
 #define _SERVO_H_
 
-int servo_init();
-
 int servo_set_millisecond(int chan, int milli);
 
 int servo_turn_off(int chan);
 
-void servo_turn_off_all();
-
 //----- PWM Setting.
 
-int servo_set_freq(int freq);
+void servo_set_freq(int freq);
 
 #endif // _SERVO_H_

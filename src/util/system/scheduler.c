@@ -34,7 +34,7 @@ int scheduler_init_real_time() {
     }
     
     LOG("Locking memory.\n");
-    if ((ret = mlockall(MCL_CURRENT)) != 0) {
+    if ((ret = mlockall(MCL_CURRENT | MCL_FUTURE)) != 0) {
         LOG_ERROR("Failed to lock memory.\n");
         goto EXIT;
     }

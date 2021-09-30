@@ -16,6 +16,7 @@
 #include "util/debug.h"
 #include "util/macro.h"
 
+#include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <termio.h>
@@ -63,10 +64,10 @@ int mavlink_init() {
         return -1;
     }
 
-    // if (mavlink_init_serial("/dev/ttyUSB0") != 0) {
-    //     LOG_ERROR("Failed to start serial.\n");
-    //     return -1;
-    // }
+    if (mavlink_init_serial("/dev/ttyS0") != 0) {
+        LOG_ERROR("Failed to start serial.\n");
+        return -1;
+    }
     
     if (mavlink_init_stream() != 0) {
         LOG_ERROR("Failed to initiate stream.\n");
@@ -120,6 +121,7 @@ void *mavlink_connection_handler(void *mavlink_file) {
     DEBUG("Subscribing.\n");
     subscribe(mavlink_publisher, sub);
 
+    int ret; // Return value of R/W a fd.
     int w_cnt; // Write count.
     char w_buf[256]; // Buffer for write.
     int r_cnt; // Read count.
@@ -140,8 +142,8 @@ void *mavlink_connection_handler(void *mavlink_file) {
         while (subscriber_has_message(sub)) {
             if ((w_cnt = subscriber_receive(sub, w_buf, sizeof(w_buf))) > 0) {
                 // Send
-                if (write(connection->fd, w_buf, w_cnt) < 0) {
-                    LOG_ERROR("Error while write.\n");
+                if ((ret = write(connection->fd, w_buf, w_cnt)) < 0) {
+                    LOG_ERROR("Error while write.(%s)\n", strerror(ret));
                     if (connection->exit_on_error) {
                         goto CONNECTION_DIED;
                     }

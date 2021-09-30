@@ -2,9 +2,25 @@
 #include "actuator/motor.h"
 #include "pid.h"
 
+#include "measurement/measurement.h"
+
 #include "util/logger.h"
 #include "util/debug.h"
+#include "util/macro.h"
 #include "util/parameter.h"
+#include "util/io/gpio.h"
+
+#define PIN_M1_CW  6
+#define PIN_M1_CCW 5
+
+#define PIN_M2_CW  17
+#define PIN_M2_CCW 27
+
+#define PIN_M3_CW  20
+#define PIN_M3_CCW 21
+
+#define PIN_M4_CW  22
+#define PIN_M4_CCW 23
 
 /**
  * All controlling diagram:
@@ -155,17 +171,106 @@ int controller_init() {
         pid_get_output_limit(pidsetting_alt)
     );
 
-    // if (motor_init() != 0) {
-    //     LOG_ERROR("Failed to initiate motor.\n");
-    //     return -1;
-    // }
+    if (motor_init() != 0) {
+        LOG_ERROR("Failed to initiate motor.\n");
+        return -1;{}
+    }
+    LOG("Initiating GPIO.\n");
+    gpio_set_export(PIN_M1_CCW);
+    gpio_set_export(PIN_M1_CW);
+    gpio_set_export(PIN_M2_CCW);
+    gpio_set_export(PIN_M2_CW);
+    gpio_set_export(PIN_M3_CCW);
+    gpio_set_export(PIN_M3_CW);
+    gpio_set_export(PIN_M4_CCW);
+    gpio_set_export(PIN_M4_CW);
+    gpio_set_direction(PIN_M1_CW, "out");
+    gpio_set_direction(PIN_M1_CCW, "out");
+    gpio_set_direction(PIN_M2_CW, "out");
+    gpio_set_direction(PIN_M2_CCW, "out");
+    gpio_set_direction(PIN_M3_CW, "out");
+    gpio_set_direction(PIN_M3_CCW, "out");
+    gpio_set_direction(PIN_M4_CW, "out");
+    gpio_set_direction(PIN_M4_CCW, "out");
 
     LOG("Done.\n");
     return 0;
 }
 
-void controller_update(uint8_t mode, float thr, float avz) {
 
+void controller_update(uint8_t mode, float thr, float avz, float heading) {
+    if (thr != 0.0) {
+        // Do computation.
+        float _thr[4] = {thr, thr, thr, thr};
+        _output_pid_az = avz != 0.0 ? avz : pid_update(pidsetting_az, 0, GET_MIN_INCLUDED_ANGLE(ahrs_get_yaw_heading(), heading));
+        
+        _output_pid_avz = pid_update(pidsetting_avz, _output_pid_az, imu_get_gz());
+
+        // Map pid output to throttle array.
+        _thr[0] += -_output_pid_avz;
+        _thr[1] += -_output_pid_avz;
+        _thr[2] += _output_pid_avz;
+        _thr[3] += _output_pid_avz;
+        
+        // Turn off Direction.
+        // gpio_write(PIN_M1_CW, 0);
+        // gpio_write(PIN_M1_CCW, 0);
+        // gpio_write(PIN_M2_CW, 0);
+        // gpio_write(PIN_M2_CCW, 0);
+        // gpio_write(PIN_M3_CW, 0);
+        // gpio_write(PIN_M3_CCW, 0);
+        // gpio_write(PIN_M4_CW, 0);
+        // gpio_write(PIN_M4_CCW, 0);
+
+        // Update.
+        _thr[0] = LIMIT_MAX_MIN(_thr[0], 100.0, -100.0);
+        _thr[1] = LIMIT_MAX_MIN(_thr[1], 100.0, -100.0);
+        _thr[2] = LIMIT_MAX_MIN(_thr[2], 100.0, -100.0);
+        _thr[3] = LIMIT_MAX_MIN(_thr[3], 100.0, -100.0);
+        motor_set(0, fabsf(_thr[0]));
+        motor_set(1, fabsf(_thr[1]));
+        motor_set(2, fabsf(_thr[2]));
+        motor_set(3, fabsf(_thr[3]));
+        
+        // Turn on direction.
+        static uint32_t prev_thr[4]; // Be used to detect direction change.
+        
+        if ((prev_thr[0] ^ *(uint32_t*)&_thr[0]) & 0x80000000) {
+
+            gpio_write(PIN_M1_CW,  _thr[0] > 0 ? 1 : 0);
+            gpio_write(PIN_M1_CCW, _thr[0] > 0 ? 0 : 1);
+        }
+
+        if ((prev_thr[1] ^ *(uint32_t*)&_thr[1]) & 0x80000000) {
+
+            gpio_write(PIN_M2_CW,  _thr[1] > 0 ? 1 : 0);
+            gpio_write(PIN_M2_CCW, _thr[1] > 0 ? 0 : 1);
+        }
+        
+        if ((prev_thr[2] ^ *(uint32_t*)&_thr[2]) & 0x80000000) {
+
+            gpio_write(PIN_M3_CW,  _thr[2] > 0 ? 0 : 1);
+            gpio_write(PIN_M3_CCW, _thr[2] > 0 ? 1 : 0);
+        }
+
+        if ((prev_thr[3] ^ *(uint32_t*)&_thr[3]) & 0x80000000) {
+
+            gpio_write(PIN_M4_CW,  _thr[3] > 0 ? 0 : 1);
+            gpio_write(PIN_M4_CCW, _thr[3] > 0 ? 1 : 0);
+        }
+
+        prev_thr[0] = *(uint32_t*)&_thr[0];
+        prev_thr[1] = *(uint32_t*)&_thr[1];
+        prev_thr[2] = *(uint32_t*)&_thr[2];
+        prev_thr[3] = *(uint32_t*)&_thr[3];
+
+    } else {
+        // Just simply turn off all motor.
+        motor_turn_off(0);
+        motor_turn_off(1);
+        motor_turn_off(2);
+        motor_turn_off(3);
+    }
 }
 
 void controller_get_thr_output(float *thr1, float *thr2, float *thr3, float *thr4);
@@ -180,6 +285,8 @@ void controller_reset() {
     pid_reset(pidsetting_avz);
     pid_reset(pidsetting_va);
     pid_reset(pidsetting_alt);
+    gpio_write(PIN_M1_CW, 0);
+    gpio_write(PIN_M1_CCW, 0);
 }
 
 //-----

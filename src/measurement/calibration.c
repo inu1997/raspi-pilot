@@ -5,6 +5,9 @@
 #include "util/debug.h"
 #include <string.h>
 
+#include <mavlink/mavlink_util.h>
+#include "pilot/pilot.h"
+
 //----- Global sampling variable.
 float _sample_mx_max = 0;
 float _sample_mx_min = 0;
@@ -30,10 +33,12 @@ float _mx_scale = 1.197;
 float _my_scale = 1.865; 
 float _mz_scale = 1.042;
 
+bool _mag_enabled = false;
+bool _gyro_enabled = false;
 
 //-----
 
-void calibration_gyro(float gx, float gy, float gz, float *ca_gx, float *ca_gy, float *ca_gz) {
+void calibration_do_gyro_calibration(float gx, float gy, float gz, float *ca_gx, float *ca_gy, float *ca_gz) {
     
     *ca_gx = gx - _gx_offset;
     *ca_gy = gy - _gy_offset;
@@ -41,7 +46,7 @@ void calibration_gyro(float gx, float gy, float gz, float *ca_gx, float *ca_gy, 
 
 }
 
-void calibration_mag(float mx, float my, float mz, float *ca_mx, float *ca_my, float *ca_mz) {
+void calibration_do_mag_calibration(float mx, float my, float mz, float *ca_mx, float *ca_my, float *ca_mz) {
 
     float tmp_x, tmp_y, tmp_z;
     tmp_x = (mx * _mx_scale) - _mx_offset;
@@ -53,7 +58,82 @@ void calibration_mag(float mx, float my, float mz, float *ca_mx, float *ca_my, f
     *ca_mx = tmp_x;
     *ca_my = tmp_y;
     *ca_mz = tmp_z;
+}
 
+void calibration_set_mag_gathering_enable(bool enable) {
+    
+    if (_mag_enabled == enable) {
+        return;
+    } 
+    if (pilot_is_armed() && enable) {
+        LOG_ERROR("Pilot is already armed. Try again after disarming.\n");
+        return;
+    }
+    _mag_enabled = enable;
+    mavlink_printf(
+        SEVERITY_NOTICE,
+        "Magnetometer calibration is %s.\n",
+        enable? "Started" : "Stopped");
+    
+    if (!_mag_enabled && !_gyro_enabled) {
+        mavlink_printf(
+            SEVERITY_NOTICE,
+            "Saving calibration result.\n");
+        calibration_save();
+        calibration_reset_sample();
+    }
+#ifdef _DEBUG
+    if(!enable) {
+
+        DEBUG(
+            "Magnetometer calibration result: \n"
+            "Scale: [%6.2f, %6.2f, %6.2f]\n"
+            "Offset: [%6.2f, %6.2f, %6.2f]\n",
+            _mx_scale, _my_scale, _mz_scale,
+            _mx_offset, _my_offset, _mz_offset);
+    }
+#endif // _DEBUG
+}
+
+void calibration_set_gyro_gathering_enable(bool enable) {
+    
+    if (_gyro_enabled == enable) {
+        return;
+    } 
+    if (pilot_is_armed() && enable) {
+        LOG_ERROR("Pilot is already armed. Try again after disarming.\n");
+        return;
+    }
+    _gyro_enabled = enable;
+    mavlink_printf(
+        SEVERITY_NOTICE,
+        "Gyroscope calibration is %s.\n",
+        enable? "Started" : "Stopped");
+
+    if (!_mag_enabled && !_gyro_enabled) {
+        mavlink_printf(
+            SEVERITY_NOTICE,
+            "Saving calibration result.\n");
+        calibration_save();
+        calibration_reset_sample();
+    }
+#ifdef _DEBUG
+    if (!enable) {
+
+        DEBUG(
+            "Gyroscope calibration result: \n"
+            "Offset: [%6.2f, %6.2f, %6.2f]\n",
+            _gx_offset, _gy_offset, _gz_offset);
+    }
+#endif // _DEBUG
+}
+
+bool calibration_mag_gathering_is_enabled() {
+    return _mag_enabled;
+}
+
+bool calibration_gyro_gathering_is_enabled() {
+    return _gyro_enabled;
 }
 
 void calibration_gather_raw_gyro(float gx, float gy, float gz) {
@@ -124,8 +204,8 @@ void calibration_load() {
     parameter_get_value_no_mutex(parameter_keys[PARAMETER_CALIB_SCALE_MX], &_mx_scale);
     parameter_get_value_no_mutex(parameter_keys[PARAMETER_CALIB_SCALE_MY], &_my_scale);
     parameter_get_value_no_mutex(parameter_keys[PARAMETER_CALIB_SCALE_MZ], &_mz_scale);
-    LOG("Offset of Mag: [%7.2f, %7.2f, %7.2f]\n", _mx_offset, _my_offset, _mz_offset);
-    LOG("Scale of Mag: [%7.2f, %7.2f, %7.2f]\n", _mx_scale, _my_scale, _mz_scale);
+    LOG("Offset of Mag:  [%7.2f, %7.2f, %7.2f]\n", _mx_offset, _my_offset, _mz_offset);
+    LOG("Scale of Mag:   [%7.2f, %7.2f, %7.2f]\n", _mx_scale, _my_scale, _mz_scale);
     LOG("Offset of Gyro: [%7.2f, %7.2f, %7.2f]\n", _gx_offset, _gy_offset, _gz_offset);
 }
 
@@ -142,8 +222,8 @@ void calibration_save() {
     parameter_set_value_no_mutex(parameter_keys[PARAMETER_CALIB_SCALE_MY], &_my_scale, false);
     parameter_set_value_no_mutex(parameter_keys[PARAMETER_CALIB_SCALE_MZ], &_mz_scale, true);
     
-    LOG("Offset of Mag: [%7.2f, %7.2f, %7.2f]\n", _mx_offset, _my_offset, _mz_offset);
-    LOG("Scale of Mag: [%7.2f, %7.2f, %7.2f]\n", _mx_scale, _my_scale, _mz_scale);
+    LOG("Offset of Mag:  [%7.2f, %7.2f, %7.2f]\n", _mx_offset, _my_offset, _mz_offset);
+    LOG("Scale of Mag:   [%7.2f, %7.2f, %7.2f]\n", _mx_scale, _my_scale, _mz_scale);
     LOG("Offset of Gyro: [%7.2f, %7.2f, %7.2f]\n", _gx_offset, _gy_offset, _gz_offset);
     calibration_reset_sample();
 }

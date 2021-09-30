@@ -26,14 +26,11 @@ int main() {
     LOG("Entering control loop.\n");
     while (1) {
         loop_delay_control();
-
-        parameter_lock_mutex();
         
         measurement_update();
         
-        // pilot_update();
+        pilot_update();
 
-        parameter_unlock_mutex();
         // LOG("Loop alive.\n");
     }
     return 0;
@@ -73,7 +70,8 @@ int init(){
         LOG_ERROR("Failed to initiate Real Time.\n");
         return -1;
     }
-    loop_init(400);
+    
+    loop_init(100);
 
     LOG("Done.\n");
     return 0;

@@ -20,6 +20,8 @@
 #define UPDATE_METHOD_MADGWICK
 // #define UPDATE_METHOD_COMPLEMENTARY
 
+// #define IMU_USE_MAG // Comment to disable mag during compilation.
+
 #define SMA_BUFFER_LENGTH_A 2
 #define SMA_BUFFER_LENGTH_G 2
 #define SMA_BUFFER_LENGTH_M 3
@@ -67,11 +69,15 @@ int imu_init() {
         LOG_ERROR("Failed to initiate MPU.\n");
         return -1;
     }
+#ifdef IMU_USE_MAG
     if (imu_init_ak() != 0) {
         LOG_ERROR("Failed to initiate AK.\n");
         return -1;
     }
-
+    _mag_enabled = true;
+#else
+    _mag_enabled = false;
+#endif // IMU_USE_MAG
     calibration_load();
     
     LOG("Initiating variables.\n");
@@ -85,7 +91,6 @@ int imu_init() {
         
         _sma_m[i] = sma_init(SMA_BUFFER_LENGTH_M);
     }
-    _mag_enabled = true;
     _mag_data_updated = false;
     LOG("Done.\n");
     return 0;
@@ -97,11 +102,12 @@ int imu_init() {
  */
 void imu_update() {
     // Read new value
-    int16_t a_read[3];
-    int16_t g_read[3];
-    int16_t m_read[3];
-    float m_read_calibrated[3];
-    
+    int16_t a_read[3]; // Raw value from accelerometer.
+    int16_t g_read[3]; // Raw value from gyroscope.
+    int16_t m_read[3]; // Raw value from magnetometer.
+    float g_calibrated[3]; // Calibrated value.
+    float m_calibrated[3]; // Calibrated value.
+
     if (_mag_enabled) {
 
         mpu_read_all(
@@ -125,26 +131,32 @@ void imu_update() {
     _raw_g[1] = (float)g_read[1] / _scale_gyro * TO_RAD;
     _raw_g[2] = (float)g_read[2] / _scale_gyro * TO_RAD;
     
+    // Calibration.
+    calibration_do_gyro_calibration(
+        _raw_g[0], _raw_g[1], _raw_g[2],
+        &g_calibrated[0], &g_calibrated[1], &g_calibrated[2]);
+
     if (_mag_data_updated) {
         _raw_m[0] = (float)m_read[0];
         _raw_m[1] = (float)m_read[1];
         _raw_m[2] = (float)m_read[2];
-        calibration_mag(
-            m_read[0],
-            m_read[1],
-            m_read[2],
-            &m_read_calibrated[0],
-            &m_read_calibrated[1],
-            &m_read_calibrated[2]
+        calibration_do_mag_calibration(
+            _raw_m[0],
+            _raw_m[1],
+            _raw_m[2],
+            &m_calibrated[0],
+            &m_calibrated[1],
+            &m_calibrated[2]
         );
     }
+
     // Filter
     int i;
     for(i = 0; i < 3; i++) {
         _est_a[i] = sma_update(_sma_a[i], _raw_a[i]);
-        _est_g[i] = sma_update(_sma_g[i], _raw_g[i]);
+        _est_g[i] = sma_update(_sma_g[i], g_calibrated[i]);
         if (_mag_data_updated) {
-            _est_m[i] = sma_update(_sma_m[i], m_read_calibrated[i]);
+            _est_m[i] = sma_update(_sma_m[i], m_calibrated[i]);
         }
     }
 }

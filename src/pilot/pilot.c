@@ -3,7 +3,11 @@
 
 #include "util/logger.h"
 #include "util/debug.h"
+#include "util/macro.h"
 #include "util/parameter.h"
+
+#include "measurement/measurement.h"
+#include "measurement/calibration.h"
 
 #include <pthread.h>
 #include <string.h>
@@ -11,17 +15,29 @@
 #define DEFAULT_MODE PILOT_MODE_PREFLIGHT
 
 int _mode = DEFAULT_MODE;
+bool _heading_is_locked;
 
 pthread_mutex_t _pilot_mutex;
 
 //----- Limitations
+uint16_t _prev_btn_state;
 float _thr; // Throttle.
+float _thr_min; // throttle stroke min. Only clamp if manual control got non-zero throttle.
+float _thr_max; // throttle stroke max.
+float _avx; // Angular velocity x.
+float _avy; // Angular velocity y.
 float _avz; // Angular velocity z.
-float _lmt_avz; // Limit of angular velocity z.
+float _heading; // Locked heading.
+float _avx_range; // Range of angular velocity x.
+float _avy_range; // Range of angular velocity y.
+float _avz_range; // Range of angular velocity z.
 
 //-----
-static void load_param_manual();
-//-----
+
+enum BUTTON {
+    BUTTON_CALIB_MAG = 0x01,
+    BUTTON_CALIB_GYRO = 0x02
+};
 
 /**
  * @brief Initiator of flight controller.
@@ -37,6 +53,26 @@ int pilot_init(){
         return -1;
     }
 
+    parameter_get_value_no_mutex(parameter_keys[PARAMETER_MANUAL_THR_MAX], &_thr_max);
+    parameter_get_value_no_mutex(parameter_keys[PARAMETER_MANUAL_THR_MIN], &_thr_min);
+    parameter_get_value_no_mutex(parameter_keys[PARAMETER_MANUAL_AVX_RAN], &_avx_range);
+    parameter_get_value_no_mutex(parameter_keys[PARAMETER_MANUAL_AVY_RAN], &_avy_range);
+    parameter_get_value_no_mutex(parameter_keys[PARAMETER_MANUAL_AVZ_RAN], &_avz_range);
+    LOG(
+        "Loaded manual control ranges:\n"
+        "   THR_MIN: %6.2f\n"
+        "   THR_MAX: %6.2f\n"
+        "   AVX_RANGE: %6.2f\n"
+        "   AVY_RANGE: %6.2f\n"
+        "   AVZ_RANGE: %6.2f\n",
+        _thr_min,
+        _thr_max,
+        _avx_range,
+        _avy_range,
+        _avz_range);
+    
+    _heading_is_locked = false;
+    _prev_btn_state = 0;
     LOG("Done.\n");
     //----- Ready
     pilot_set_mode(PILOT_MODE_STABILIZE);
@@ -51,10 +87,11 @@ void pilot_update(){
     pilot_lock_mutex();
     
     if (pilot_is_armed()) {
-        // controller_update(
-        //     _mode & (~PILOT_AMRED),
-        //     _thr,
-        //     _avz);
+        controller_update(
+            _mode & (~PILOT_AMRED),
+            _thr,
+            _avz,
+            _heading);
     } 
 
     pilot_unlock_mutex();
@@ -76,11 +113,20 @@ void pilot_unlock_mutex() {
     pthread_mutex_unlock(&_pilot_mutex);
 }
 
-
+/**
+ * @brief Check if pilot is amred.
+ * 
+ * @return True if armed else false.
+ */
 bool pilot_is_armed() {
     return _mode & PILOT_AMRED ? true : false;
 }
 
+/**
+ * @brief Arm the pilot.
+ * 
+ * @return 0 if success else -1. 
+ */
 int pilot_arm() {
     pilot_lock_mutex();
     
@@ -88,12 +134,26 @@ int pilot_arm() {
     if (!pilot_is_armed()) {
         _mode |= PILOT_AMRED;
         ret = 0;
+
+        // Disable running calibration.
+        calibration_set_mag_gathering_enable(false);
+        calibration_set_gyro_gathering_enable(false);
+        // Set all value to zero.
+        pilot_set_avx(0);
+        pilot_set_avy(0);
+        pilot_set_avz(0);
+        pilot_set_thr(0);
     }
     
     pilot_unlock_mutex();
     return ret;
 }
 
+/**
+ * @brief Disarm the pilot.
+ * 
+ * @return 0 if success else -1.
+ */
 int pilot_disarm() {
     pilot_lock_mutex();
     
@@ -108,15 +168,47 @@ int pilot_disarm() {
     return ret;
 }
 
-void pilot_handle_menual(int16_t x, int16_t y, int16_t z, int16_t r, uint16_t btns) {
+/**
+ * @brief Handle the MAVLink manual control message.
+ *      Map them to controller parameter value.
+ * @param x MAVLink manual control x.
+ * @param y MAVLink manual control y.
+ * @param z MAVLink manual control z.
+ * @param r MAVLink manual control r.
+ * @param s MAVLink manual control s.
+ * @param t MAVLink manual control t.
+ * @param btns1 MAVLink manual control button1.
+ * @param btns2 MAVLink manual control button2.
+ */
+void pilot_handle_menual(
+    int16_t x, int16_t y, int16_t z, 
+    int16_t r, int16_t s, int16_t t,
+    uint16_t btns1, uint16_t btns2) {
     pilot_lock_mutex();
     
-    // MAP R axis to throttle.
-    _thr = (float)(r - 500) / 500.0 * 100.0;
+    // MAP Z axis to throttle.
+    pilot_set_thr(((float)z - 500.0) / 5.0);
     
-    // MAP X axis to avz.
-    _avz = (float)x / 1000.0 * _lmt_avz;
+    // MAP R axis to avz.
+    pilot_set_avz(r == 0 ? 0 : -(float)r / 1000.0 * _avz_range);
     
+    // Handle button.
+    if ((_prev_btn_state ^ btns1) & BUTTON_CALIB_MAG) {
+        if (btns1 & BUTTON_CALIB_MAG) {
+            // Toggle calibration.
+            calibration_set_mag_gathering_enable(!calibration_mag_gathering_is_enabled());
+        }
+    }
+    
+    if ((_prev_btn_state ^ btns1) & BUTTON_CALIB_GYRO) {
+        if (btns1 & BUTTON_CALIB_GYRO) {
+            // Toggle calibration.
+            calibration_set_gyro_gathering_enable(!calibration_gyro_gathering_is_enabled());
+        }
+    }
+
+    _prev_btn_state = btns1;
+
     pilot_unlock_mutex();
 }
 
@@ -141,13 +233,182 @@ int pilot_get_mode(){
     return _mode;
 }
 
-void pilot_set_limit_avz(float lmt);
-
-float pilot_get_limit_avz();
-
-//-----
-
-void load_param_manual() {
-    float avz_max;
-    parameter_get_value_no_mutex(parameter_keys[PARAMETER_MANUAL_AVZ_MAX], &avz_max);
+// Range setter/getter.
+void pilot_set_thr_max(float max) {
+    _thr_max = max;
 }
+
+float pilot_get_thr_max() {
+    return _thr_max;
+}
+
+void pilot_set_thr_min(float min) {
+    _thr_min = min;
+}
+
+float pilot_get_thr_min() {
+    return _thr_min;
+}
+
+void pilot_set_avx_range(float radsec) {
+    _avx_range = radsec;
+}
+
+float pilot_get_avx_range() {
+    return _avx_range;
+}
+
+void pilot_set_avy_range(float radsec) {
+    _avy_range = radsec;
+}
+
+float pilot_get_avy_range() {
+    return _avy_range;
+}
+
+void pilot_set_avz_range(float radsec) {
+    _avz_range = radsec;
+}
+
+float pilot_get_avz_range() {
+    return _avz_range;
+}
+
+// Control parameter setter/getter.
+/**
+ * @brief Set the throttle from 0.0 to 100.0 %
+ * 
+ * @param thr 
+ *      Throttle by percent.
+ */
+void pilot_set_thr(float thr) {
+    thr = LIMIT_MAX_MIN(thr, 100.0, -100.0);
+    _thr = thr == 0.0 ? 0.0 : thr / 100.0 * (_thr_max - _thr_min);
+    _thr += _thr > 0.0 ? _thr_min :
+            _thr < 0.0 ? -_thr_min :
+            0.0;
+
+    // DEBUG("New throttle: %4.1f, param: %4.1f.\n", _thr, thr);
+}
+
+/**
+ * @brief Get the clamped throttle.
+ * 
+ * @return Throttle.
+ */
+float pilot_get_thr() {
+    return _thr;
+}
+
+/**
+ * @brief Set the angular velocity x.
+ * 
+ * @param radsec
+ *      Angular velocity in unit of radian per second speed. 
+ */
+void pilot_set_avx(float radsec) {
+    _avx = LIMIT_MAX_MIN(
+        radsec, 
+        _avx_range,
+        -_avx_range);
+    // DEBUG("avx: %5.1f rad/sec.\n", _avx);
+}
+
+/**
+ * @brief Get the angular velocity x.
+ * 
+ * @return Angular velocity x.
+ */
+float pilot_get_avx() {
+    return _avx;
+}
+
+/**
+ * @brief Set the angular velocity y.
+ * 
+ * @param radsec
+ *      Angular velocity in unit of radian per second speed. 
+ */
+void pilot_set_avy(float radsec) {
+    _avy = LIMIT_MAX_MIN(
+        radsec, 
+        _avy_range,
+        -_avy_range);
+        
+    // DEBUG("avy: %5.1f rad/sec.\n", _avy);
+}
+
+/**
+ * @brief Get the angular velocity y.
+ * 
+ * @return Angular velocity y.
+ */
+float pilot_get_avy() {
+    return _avy;
+}
+
+/**
+ * @brief Set the angular velocity z.
+ *      0.0 is to lock the heading.
+ *      Non-zero value will unlock the heading.
+ * @param radsec
+ *      Angular velocity in unit of radian per second speed. 
+ */
+void pilot_set_avz(float radsec) {
+    _avz = LIMIT_MAX_MIN(
+        radsec, 
+        _avz_range,
+        -_avz_range);
+    
+    if (_avz != 0.0) {
+        _heading_is_locked = false;
+    }
+    
+    // DEBUG("avz: %5.1f rad/sec.\n", _avz);
+
+    // 0.0 is to lock the heading.
+    if (_avz == 0.0 && !pilot_heading_is_locked()) {
+        pilot_set_heading(ahrs_get_yaw_heading());
+        // DEBUG("Locking yaw: %6.1f.\n", _heading);
+    } 
+}
+
+/**
+ * @brief Get the angular velocity z.
+ * 
+ * @return Angular velocity z.
+ */
+float pilot_get_avz() {
+    return _avz;
+}
+
+/**
+ * @brief Check is heading is locked.
+ *      It can be locked via pilot_set_heading function.
+ * 
+ * @return True if heading is locked else false.
+ */
+bool pilot_heading_is_locked() {
+    return _heading_is_locked;
+}
+
+/**
+ * @brief Set the lock heading of pilot.
+ * 
+ * @param heading 
+ *      The heading from -Pi to +Pi.
+ */
+void pilot_set_heading(float heading) {
+    _heading_is_locked = true;
+    _heading = heading;
+}
+
+/**
+ * @brief Get the (previous) locking heading of pilot.
+ * 
+ * @return Heading.
+ */
+float pilot_get_heading() {
+    return _heading;
+}
+//-----

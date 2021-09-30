@@ -1,5 +1,6 @@
 #include "gpio.h"
 
+#include "util/logger.h"
 #include "util/debug.h"
 
 #include <stdio.h>
@@ -24,12 +25,12 @@ int gpio_set_export(int index) {
     
     int ret = 0;
     if (fd == -1) {
-        printf("Failed to open export.\n");
+        LOG_ERROR("Failed to open export.\n");
         ret = -1;
         goto EXIT;
     }
     if (dprintf(fd, "%d", index) < 0) {
-        printf("Failed to write.\n");
+        LOG_ERROR("Failed to write.\n");
         ret = -1;
         goto EXIT;
     }
@@ -50,12 +51,12 @@ int gpio_set_unexport(int index) {
     
     int ret = 0;
     if (fd == -1) {
-        printf("Failed to open unexport.\n");
+        LOG_ERROR("Failed to open unexport.\n");
         ret = -1;
         goto EXIT;
     }
     if (dprintf(fd, "%d", index) < 0) {
-        printf("Failed to write.\n");
+        LOG_ERROR("Failed to write.\n");
         ret = -1;
         goto EXIT;
     }
@@ -76,7 +77,7 @@ int gpio_set_unexport(int index) {
 int gpio_set_direction(int index, const char *dir) {
     char path[64];
     sprintf(path, GPIO_PATH "%d/direction", index);
-    DEBUG("Opening path \"%s\"\n", path);
+    // DEBUG("Opening path \"%s\"\n", path);
     int fd = open(path, O_WRONLY);
 
     int ret = 0;
@@ -107,7 +108,7 @@ int gpio_set_direction(int index, const char *dir) {
 int gpio_get_direction(int index, char *dest) {
     char path[64];
     sprintf(path, GPIO_PATH "%d/direction", index);
-    DEBUG("Opening path \"%s\"\n", path);
+    // DEBUG("Opening path \"%s\"\n", path);
     int fd = open(path, O_RDONLY);
 
     int ret = 0;
@@ -140,7 +141,7 @@ int gpio_get_direction(int index, char *dest) {
 int gpio_write(int index, int val) {
     char path[64];
     sprintf(path, GPIO_PATH "%d/value", index);
-    DEBUG("Opening path \"%s\"\n", path);
+    // DEBUG("Opening path \"%s\"\n", path);
     int fd = open(path, O_WRONLY);
 
     int ret = 0;
@@ -172,7 +173,7 @@ int gpio_write(int index, int val) {
 int gpio_read(int index, int *val) {
     char path[64];
     sprintf(path, GPIO_PATH "%d/value", index);
-    DEBUG("Opening path \"%s\"\n", path);
+    // DEBUG("Opening path \"%s\"\n", path);
     int fd = open(path, O_RDONLY);
 
     int ret = 0;
