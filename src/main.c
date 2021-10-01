@@ -71,7 +71,7 @@ int init(){
         return -1;
     }
     
-    loop_init(100);
+    loop_init(400);
 
     LOG("Done.\n");
     return 0;

@@ -13,6 +13,7 @@
 #include <string.h>
 
 #define DEFAULT_MODE PILOT_MODE_PREFLIGHT
+#define DEAD_BAND 50
 
 int _mode = DEFAULT_MODE;
 bool _heading_is_locked;
@@ -187,10 +188,18 @@ void pilot_handle_menual(
     pilot_lock_mutex();
     
     // MAP Z axis to throttle.
-    pilot_set_thr(((float)z - 500.0) / 5.0);
+    if ((z > 500 + DEAD_BAND) || (z < 500 - DEAD_BAND)) {
+        pilot_set_thr(((float)z - 500.0) / 5.0);
+    } else {
+        pilot_set_thr(0);
+    }
     
     // MAP R axis to avz.
-    pilot_set_avz(r == 0 ? 0 : -(float)r / 1000.0 * _avz_range);
+    if (r > DEAD_BAND || r < DEAD_BAND) {
+        pilot_set_avz(r == 0 ? 0 : -(float)r / 1000.0 * _avz_range);
+    } else {
+        pilot_set_avz(0);
+    }
     
     // Handle button.
     if ((_prev_btn_state ^ btns1) & BUTTON_CALIB_MAG) {

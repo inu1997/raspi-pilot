@@ -10,17 +10,17 @@
 #include "util/parameter.h"
 #include "util/io/gpio.h"
 
-#define PIN_M1_CW  6
-#define PIN_M1_CCW 5
+#define PIN_M1_CW  27
+#define PIN_M1_CCW 17
 
-#define PIN_M2_CW  17
-#define PIN_M2_CCW 27
+#define PIN_M2_CW  6
+#define PIN_M2_CCW 5
 
-#define PIN_M3_CW  20
-#define PIN_M3_CCW 21
+#define PIN_M3_CW  19
+#define PIN_M3_CCW 26
 
-#define PIN_M4_CW  22
-#define PIN_M4_CCW 23
+#define PIN_M4_CW  20
+#define PIN_M4_CCW 21
 
 /**
  * All controlling diagram:
@@ -199,7 +199,7 @@ int controller_init() {
 
 
 void controller_update(uint8_t mode, float thr, float avz, float heading) {
-    if (thr != 0.0) {
+    if (thr != 0.0 || avz != 0.0) {
         // Do computation.
         float _thr[4] = {thr, thr, thr, thr};
         _output_pid_az = avz != 0.0 ? avz : pid_update(pidsetting_az, 0, GET_MIN_INCLUDED_ANGLE(ahrs_get_yaw_heading(), heading));
