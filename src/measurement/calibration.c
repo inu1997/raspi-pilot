@@ -33,8 +33,8 @@ float _mx_scale = 1.197;
 float _my_scale = 1.865; 
 float _mz_scale = 1.042;
 
-bool _mag_enabled = false;
-bool _gyro_enabled = false;
+static bool _mag_enabled = false;
+static bool _gyro_enabled = false;
 
 //-----
 

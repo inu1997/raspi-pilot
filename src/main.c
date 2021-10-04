@@ -27,9 +27,9 @@ int main() {
     while (1) {
         loop_delay_control();
         
-        measurement_update();
+        // measurement_update();
         
-        pilot_update();
+        // pilot_update();
 
         // LOG("Loop alive.\n");
     }
@@ -50,27 +50,25 @@ int init(){
     LOG("Initiating modules.\n");
     
     // Initiate modules
-    if (measurement_init() != 0){
-        LOG_ERROR("Failed to initiate Measurement.\n");
-        return -1;
-    }
+    // if (measurement_init() != 0){
+    //     LOG_ERROR("Failed to initiate Measurement.\n");
+    //     return -1;
+    // }
+    // if (pilot_init() != 0){
+    //     LOG_ERROR("Failed to initiate Pilot.\n");
+    //     return -1;
+    // }
+    // if (scheduler_init_real_time() != 0) {
+    //     LOG_ERROR("Failed to initiate Real Time.\n");
+    //     return -1;
+    // }
 
-    if (pilot_init() != 0){
-        LOG_ERROR("Failed to initiate Pilot.\n");
-        return -1;
-    }
-
-    // Initiate Loop
     if (mavlink_init() != 0) {
         LOG_ERROR("Failed to initiate Remote.\n");
         return -1;
     }
-
-    if (scheduler_init_real_time() != 0) {
-        LOG_ERROR("Failed to initiate Real Time.\n");
-        return -1;
-    }
     
+    // Initiate Loop
     loop_init(400);
 
     LOG("Done.\n");

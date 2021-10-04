@@ -4,7 +4,7 @@
 
 #include "util/system/scheduler.h"
 #include "util/tv.h"
-#include "subscription.h"
+#include "subscription/subscription.h"
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -58,14 +58,14 @@ void *mavlink_udp_handler(void *arg) {
     }
 
     LOG("Initializing.\n");
-    
-    DEBUG("Creating subscriber.\n");
-    struct Subscriber *sub = subscriber_init();
-    subscribe(mavlink_publisher, sub);
-    subscriber_set_active(sub, true);
 
     int chan = mavlink_ocupy_usable_channel();
 
+    LOG("Activate subscribtor.\n");
+    subscriber_set_active(chan, true);
+
+    int ret; // Return value of R/W a fd.
+    int i; // For recurse
     int w_cnt; // Length of write buffer.
     char w_buf[256]; // Buffer for write.
     int r_cnt;
@@ -90,14 +90,13 @@ void *mavlink_udp_handler(void *arg) {
     while (1) {
         // Limit rate.
         usleep(10000);
-
-        int i;
+        
         // Send
-        while (subscriber_has_message(sub)) {
-            if ((w_cnt = subscriber_receive(sub, w_buf, sizeof(w_buf))) > 0) {
+        while (subscriber_available(chan)) {
+            if ((w_cnt = subscriber_read(chan, w_buf, sizeof(w_buf))) > 0) {
                 // Send
-                if (sendto(sock_fd, w_buf, w_cnt, 0, (struct sockaddr*)&gc_addr, slen) < 0) {
-                    LOG_ERROR("Error while write.\n");
+                if ((ret = sendto(sock_fd, w_buf, w_cnt, 0, (struct sockaddr*)&gc_addr, slen)) < 0) {
+                    LOG_ERROR("Error while write.(%s)\n", strerror(ret));
                     goto CONNECTION_DIED;
                 } 
             }
@@ -120,7 +119,6 @@ void *mavlink_udp_handler(void *arg) {
                         if (r_msg.msgid != MAVLINK_MSG_ID_MANUAL_CONTROL && r_msg.msgid != MAVLINK_MSG_ID_HEARTBEAT) {
                             DEBUG("Handle success.\n");
 #endif // _DEBUG
-
                         }
                     } else {
                         LOG_ERROR("Handler failure.\n");
@@ -156,11 +154,9 @@ void *mavlink_udp_handler(void *arg) {
         active = false;
     }
 
+    subscriber_reset(chan);
+
     mavlink_release_channel(chan);
-    
-    unsubscribe(mavlink_publisher, sub);
-    
-    subscriber_destroy(sub);
     
     close(sock_fd);
     LOG("UDP connection died.\n");

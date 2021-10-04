@@ -51,7 +51,7 @@ struct SMAFilter *_sma_m[3]; // Simeple Moving Average Filter for Megnetometer.
 
 bool _mag_data_updated; // True if magnetometer is updated in this loop else false.
 
-bool _mag_enabled;
+static bool _mag_enabled;
 
 int imu_init_mpu();
 
