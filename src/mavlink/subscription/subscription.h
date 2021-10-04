@@ -3,7 +3,7 @@
  * @author DeltaDoggo 
  * @brief Subscriptor/Publisher design pattern for multi-thread MAVLink W/R.
  * Create N subscriptors for processing the send messages. (N equals the maximum number of MAVLink Channel.)
- * 
+ * Index could be the channel of the mavlink thread is using.
  * 
  * @version 0.1
  * @date 2021-10-04
