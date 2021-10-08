@@ -21,6 +21,6 @@ Communicate with QGourndControl using MAVLink.
 - [x] Correct IMU reading.
 - [x] MAVLink support.
 - [x] Parameter support.
-- [ ] Pilotable.
+- [x] Pilotable.
 - [ ] Camera stream.
 - [ ] More MAVLink message to complete.
