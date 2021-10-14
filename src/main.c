@@ -2,6 +2,7 @@
 #include "measurement/measurement.h"
 #include "pilot/pilot.h"
 #include "mavlink/mavlink_main.h"
+#include "camera/camera.h"
 
 #include "util/parameter.h"
 #include "util/logger.h"
@@ -44,6 +45,9 @@ int init(){
         return -1;
     }
     if (parameter_init() != 0) {
+        return -1;
+    }
+    if (camera_init() != 0) {
         return -1;
     }
     

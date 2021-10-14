@@ -12,6 +12,8 @@
 #include "util/tv.h"
 #include "util/debug.h"
 
+#include "camera/camera.h"
+
 #include <unistd.h>
 
 int mavlink_handle_cmd_request_protocol_version();
@@ -23,6 +25,14 @@ int mavlink_handle_cmd_request_camera_information();
 int mavlink_handle_cmd_request_camera_capture_status();
 
 int mavlink_handle_cmd_request_camera_setting();
+
+int mavlink_handle_cmd_image_start_capture();
+
+int mavlink_handle_cmd_image_stop_capture();
+
+int mavlink_handle_cmd_video_start_capture();
+
+int mavlink_handle_cmd_video_stop_capture();
 
 int mavlink_handle_cmd_request_storage_information();
 
@@ -88,6 +98,22 @@ int mavlink_handle_cmd_long() {
         case MAV_CMD_REQUEST_CAMERA_SETTINGS:
             DEBUG("%s.\n", TO_STRING(MAV_CMD_REQUEST_CAMERA_SETTINGS));
             ret = mavlink_handle_cmd_request_camera_setting();
+        break;
+        case MAV_CMD_IMAGE_START_CAPTURE:
+            DEBUG("%s.\n", TO_STRING(MAV_CMD_IMAGE_START_CAPTURE));
+            ret = mavlink_handle_cmd_image_start_capture();
+        break;
+        case MAV_CMD_IMAGE_STOP_CAPTURE:
+            DEBUG("%s.\n", TO_STRING(MAV_CMD_IMAGE_STOP_CAPTURE));
+            ret = mavlink_handle_cmd_image_stop_capture();
+        break;
+        case MAV_CMD_VIDEO_START_CAPTURE:
+            DEBUG("%s.\n", TO_STRING(MAV_CMD_VIDEO_START_CAPTURE));
+            ret = mavlink_handle_cmd_video_start_capture();
+        break;
+        case MAV_CMD_VIDEO_STOP_CAPTURE:
+            DEBUG("%s.\n", TO_STRING(MAV_CMD_VIDEO_STOP_CAPTURE));
+            ret = mavlink_handle_cmd_video_start_capture();
         break;
         case MAV_CMD_REQUEST_STORAGE_INFORMATION:
             DEBUG("%s.\n", TO_STRING(MAV_CMD_REQUEST_STORAGE_INFORMATION));
@@ -179,20 +205,18 @@ int mavlink_handle_cmd_request_camera_information() {
         MAVLINK_COMM_0,
         &new_msg,
         tv_get_msec_since_epoch(),
-        "Null",
-        "0001",
+        camera_get_vendor_name(),
+        camera_get_model_name(),
+        camera_get_version(),
         1,
         1,
         1,
         1,
         1,
         1,
-        1,
-        CAMERA_CAP_FLAGS_CAN_CAPTURE_IMAGE_IN_VIDEO_MODE|
-        CAMERA_CAP_FLAGS_CAPTURE_IMAGE |
-        CAMERA_CAP_FLAGS_CAPTURE_VIDEO ,
+        camera_get_capability(),
         0,
-        "");
+        camera_get_url());
 
     MAVLINK_SEND(&new_msg);
     return 0;
@@ -200,19 +224,19 @@ int mavlink_handle_cmd_request_camera_information() {
 
 int mavlink_handle_cmd_request_camera_capture_status() {
     mavlink_message_t new_msg;
-    mavlink_msg_camera_capture_status_pack_chan(
+        mavlink_msg_camera_capture_status_pack_chan(
         MAVLINK_SYS_ID,
         MAV_COMP_ID_CAMERA,
         MAVLINK_COMM_0,
         &new_msg,
         tv_get_msec_since_epoch(),
+        camera_get_image_capture_interval() != 0.0 ? (camera_is_image_capturing() ? 3 : 2) : (camera_is_image_capturing() ? 1 : 0),
+        camera_is_video_capturing() ? 1 : 0,
+        camera_get_image_capture_interval(),
         0,
         0,
-        0,
-        0,
-        0,
-        0);
-    
+        camera_get_image_capture_number());
+
     MAVLINK_SEND(&new_msg);
     return 0;
 }
@@ -231,6 +255,51 @@ int mavlink_handle_cmd_request_camera_setting() {
     
     MAVLINK_SEND(&new_msg);
     return 0;
+}
+
+int mavlink_handle_cmd_image_start_capture() {
+    mavlink_command_long_t decoded;
+    mavlink_msg_command_long_decode(
+        mavlink_handler_get_current_msg(), 
+        &decoded);
+
+    //-----
+    static int prev_sequence = 0; // To check One-time capture not duplicate.
+    
+    camera_set_image_capture_number((int)decoded.param3),
+    camera_set_image_capture_interval(decoded.param2);
+
+    if ((int)decoded.param3 == 1) {
+        // One-time capture.
+        // Check sequence.
+        if ((int)decoded.param4 != prev_sequence) {
+            // Checked.
+            camera_set_image_capturing(true);
+        }
+    } else {
+        // Continuous capture.
+        // Simply set it true.
+        camera_set_image_capturing(true);
+    }
+}
+
+int mavlink_handle_cmd_image_stop_capture() {
+    camera_set_image_capturing(false);
+}
+
+int mavlink_handle_cmd_video_start_capture() {
+    mavlink_command_long_t decoded;
+    mavlink_msg_command_long_decode(
+        mavlink_handler_get_current_msg(), 
+        &decoded);
+    
+    //-----
+    camera_set_video_capturing(true);
+    camera_set_status_interval_msec(1000 / decoded.param2);
+}
+
+int mavlink_handle_cmd_video_stop_capture() {
+    camera_set_video_capturing(false);
 }
 
 int mavlink_handle_cmd_request_storage_information() {

@@ -3,6 +3,7 @@
 
 #include "c_library_v2/standard/mavlink.h"
 
+#include "camera/camera.h"
 #include "measurement/measurement.h"
 #include "pilot/pilot.h"
 
@@ -60,15 +61,17 @@ void mavlink_stream_hb_battery();
 void mavlink_stream_attitude();
 void mavlink_stream_sensor();
 void mavlink_stream_battery();
+void mavlink_stream_camera_capture_status();
 
-struct TaskBlock tasks[] = {
-    TIMED_TASK(mavlink_stream_hb_auto_pilot, 1),
-    TIMED_TASK(mavlink_stream_hb_camera, 1),
-    // TIMED_TASK(mavlink_stream_hb_imu, 1),
-    // TIMED_TASK(mavlink_stream_hb_battery, 1),
-    TIMED_TASK(mavlink_stream_attitude, 5),
-    TIMED_TASK(mavlink_stream_sensor, 5),
-    TIMED_TASK(mavlink_stream_battery, 0.2)
+void (*tasks[])() = {
+    mavlink_stream_hb_auto_pilot,
+    mavlink_stream_hb_camera,
+    // mavlink_stream_hb_imu,
+    // mavlink_stream_hb_battery,
+    mavlink_stream_attitude,
+    mavlink_stream_sensor,
+    mavlink_stream_battery,
+    mavlink_stream_camera_capture_status
 };
 
 //-----
@@ -76,19 +79,27 @@ struct TaskBlock tasks[] = {
 void *mavlink_stream_handler(void *arg) {
     int i = 0;
     while (1) {
-        
-        DO_TIMED_TASK(tasks[i].tv, tasks[i].hz, tasks[i].func);
+        tasks[i]();
     
         usleep(10000);
 
-        i = (i + 1) % (sizeof(tasks) / sizeof(struct TaskBlock));
-        
+        i = (i + 1) % (sizeof(tasks) / sizeof(void (*)()));
     }
 }
 
 //-----
 
 void mavlink_stream_hb_auto_pilot() {
+    static struct timeval tv = TV_INITIALIZER;
+    const float hz = 1;
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    if (tv_get_diff_msec_ul(&tv, &now) < 1000 / hz) {
+        return;
+    }
+    gettimeofday(&tv, NULL);
+    
+    //-----
     mavlink_message_t msg;
     
     mavlink_msg_heartbeat_pack_chan(
@@ -100,13 +111,22 @@ void mavlink_stream_hb_auto_pilot() {
         MAV_AUTOPILOT_GENERIC,
         pilot_get_mode(),
         0,
-        MAV_STATE_ACTIVE
-    );
+        MAV_STATE_ACTIVE);
 
     MAVLINK_SEND(&msg);
 }
 
 void mavlink_stream_hb_camera() {
+    static struct timeval tv = TV_INITIALIZER;
+    const float hz = 1;
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    if (tv_get_diff_msec_ul(&tv, &now) < 1000 / hz) {
+        return;
+    }
+    gettimeofday(&tv, NULL);
+    
+    //-----
     mavlink_message_t msg;
     
     mavlink_msg_heartbeat_pack_chan(
@@ -118,48 +138,75 @@ void mavlink_stream_hb_camera() {
         MAV_AUTOPILOT_INVALID,
         0,
         0,
-        MAV_STATE_ACTIVE
-    );
+        MAV_STATE_ACTIVE);
 
     MAVLINK_SEND(&msg);
 }
 
 void mavlink_stream_hb_imu() {
+    static struct timeval tv = TV_INITIALIZER;
+    const float hz = 1;
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    if (tv_get_diff_msec_ul(&tv, &now) < 1000 / hz) {
+        return;
+    }
+    gettimeofday(&tv, NULL);
+    
+    //-----
     mavlink_message_t msg;
     
     mavlink_msg_heartbeat_pack_chan(
         MAVLINK_SYS_ID,
-        MAV_COMP_ID_AUTOPILOT1,
+        MAV_COMP_ID_IMU,
         MAVLINK_COMM_0,
         &msg,
         0,
         MAV_AUTOPILOT_INVALID,
         0,
         0,
-        MAV_STATE_ACTIVE
-    );
+        MAV_STATE_ACTIVE);
 
     MAVLINK_SEND(&msg);
 }
 
 void mavlink_stream_hb_battery() {
+    static struct timeval tv = TV_INITIALIZER;
+    const float hz = 1;
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    if (tv_get_diff_msec_ul(&tv, &now) < 1000 / hz) {
+        return;
+    }
+    gettimeofday(&tv, NULL);
+    
+    //-----
     mavlink_message_t msg;
     
     mavlink_msg_heartbeat_pack_chan(
         MAVLINK_SYS_ID,
-        MAV_COMP_ID_AUTOPILOT1,
+        MAV_COMP_ID_BATTERY,
         MAVLINK_COMM_0,
         &msg,
         0,
         MAV_AUTOPILOT_INVALID,
         0,
         0,
-        MAV_STATE_ACTIVE
-    );
+        MAV_STATE_ACTIVE);
 
     MAVLINK_SEND(&msg);
 }
 void mavlink_stream_attitude() {
+    static struct timeval tv = TV_INITIALIZER;
+    const float hz = 5;
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    if (tv_get_diff_msec_ul(&tv, &now) < 1000 / hz) {
+        return;
+    }
+    gettimeofday(&tv, NULL);
+    
+    //-----
     mavlink_message_t msg;
     
     mavlink_msg_attitude_pack_chan(
@@ -173,13 +220,22 @@ void mavlink_stream_attitude() {
         -ahrs_get_yaw_heading(),
         imu_get_gx(),
         imu_get_gy(),
-        imu_get_gz()
-    );
+        imu_get_gz());
 
     MAVLINK_SEND(&msg);
 }
 
 void mavlink_stream_sensor() {
+    static struct timeval tv = TV_INITIALIZER;
+    const float hz = 5;
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    if (tv_get_diff_msec_ul(&tv, &now) < 1000 / hz) {
+        return;
+    }
+    gettimeofday(&tv, NULL);
+    
+    //-----
     mavlink_message_t msg;
     mavlink_msg_hil_sensor_pack_chan(
         MAVLINK_SYS_ID,
@@ -201,13 +257,22 @@ void mavlink_stream_sensor() {
         barometer_get_altitude(),
         barometer_get_temperature(),
         0x80000000,
-        0
-    );
+        0);
 
     MAVLINK_SEND(&msg);
 }
 
 void mavlink_stream_battery() {
+    static struct timeval tv = TV_INITIALIZER;
+    const float hz = 0.2;
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    if (tv_get_diff_msec_ul(&tv, &now) < 1000 / hz) {
+        return;
+    }
+    gettimeofday(&tv, NULL);
+    
+    //-----
     mavlink_message_t msg;
     mavlink_msg_battery_status_pack_chan(
         MAVLINK_SYS_ID,
@@ -227,8 +292,39 @@ void mavlink_stream_battery() {
         MAV_BATTERY_CHARGE_STATE_OK,
         0,
         0,
-        0
-    );
+        0);
+
+    MAVLINK_SEND(&msg);
+}
+
+void mavlink_stream_camera_capture_status() {
+    if (!(camera_is_image_capturing() || camera_is_video_capturing())) {
+        return;
+    }
+
+    static struct timeval tv = TV_INITIALIZER;
+    const float hz = 1;
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    if (tv_get_diff_msec_ul(&tv, &now) < camera_get_status_interval_msec()) {
+        return;
+    }
+    gettimeofday(&tv, NULL);
+    
+    //-----
+    mavlink_message_t msg;
+    mavlink_msg_camera_capture_status_pack_chan(
+        MAVLINK_SYS_ID,
+        MAV_COMP_ID_CAMERA,
+        MAVLINK_COMM_0,
+        &msg,
+        tv_get_msec_since_epoch(),
+        camera_get_image_capture_interval() != 0.0 ? (camera_is_image_capturing() ? 3 : 2) : (camera_is_image_capturing() ? 1 : 0),
+        camera_is_video_capturing() ? 1 : 0,
+        camera_get_image_capture_interval(),
+        0,
+        0,
+        camera_get_image_capture_number());
 
     MAVLINK_SEND(&msg);
 }
