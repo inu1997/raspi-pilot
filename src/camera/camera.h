@@ -26,6 +26,8 @@ void camera_set_status_interval_msec(int msec);
 
 int camera_get_status_interval_msec();
 
+//----- Information
+
 const char *camera_get_vendor_name();
 
 const char *camera_get_model_name();

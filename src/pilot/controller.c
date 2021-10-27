@@ -10,17 +10,17 @@
 #include "util/parameter.h"
 #include "util/io/gpio.h"
 
-#define PIN_M1_CW  27
-#define PIN_M1_CCW 17
+#define PIN_M1_CW  20
+#define PIN_M1_CCW 21
 
-#define PIN_M2_CW  6
-#define PIN_M2_CCW 5
+#define PIN_M2_CW  19
+#define PIN_M2_CCW 26
 
-#define PIN_M3_CW  19
-#define PIN_M3_CCW 26
+#define PIN_M3_CW  27
+#define PIN_M3_CCW 17
 
-#define PIN_M4_CW  20
-#define PIN_M4_CCW 21
+#define PIN_M4_CW  13
+#define PIN_M4_CCW 6
 
 /**
  * All controlling diagram:
@@ -203,7 +203,6 @@ void controller_update(uint8_t mode, float thr, float avz, float heading) {
         // Do computation.
         float _thr[4] = {thr, thr, thr, thr};
         _output_pid_az = avz != 0.0 ? avz : pid_update(pidsetting_az, 0, GET_MIN_INCLUDED_ANGLE(ahrs_get_yaw_heading(), heading));
-        
         _output_pid_avz = pid_update(pidsetting_avz, _output_pid_az, imu_get_gz());
 
         // Map pid output to throttle array.
@@ -212,16 +211,6 @@ void controller_update(uint8_t mode, float thr, float avz, float heading) {
         _thr[2] += _output_pid_avz;
         _thr[3] += _output_pid_avz;
         
-        // Turn off Direction.
-        // gpio_write(PIN_M1_CW, 0);
-        // gpio_write(PIN_M1_CCW, 0);
-        // gpio_write(PIN_M2_CW, 0);
-        // gpio_write(PIN_M2_CCW, 0);
-        // gpio_write(PIN_M3_CW, 0);
-        // gpio_write(PIN_M3_CCW, 0);
-        // gpio_write(PIN_M4_CW, 0);
-        // gpio_write(PIN_M4_CCW, 0);
-
         // Update.
         _thr[0] = LIMIT_MAX_MIN(_thr[0], 100.0, -100.0);
         _thr[1] = LIMIT_MAX_MIN(_thr[1], 100.0, -100.0);

@@ -64,10 +64,10 @@ int mavlink_init() {
     //     return -1;
     // }
 
-    // if (mavlink_init_serial("/dev/ttyS0") != 0) {
-    //     LOG_ERROR("Failed to start serial.\n");
-    //     return -1;
-    // }
+    if (mavlink_init_serial("/dev/ttyS0") != 0) {
+        LOG_ERROR("Failed to start serial.\n");
+        return -1;
+    }
     
     if (mavlink_init_stream() != 0) {
         LOG_ERROR("Failed to initiate stream.\n");

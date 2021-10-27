@@ -135,7 +135,7 @@ int pilot_arm() {
     if (!pilot_is_armed()) {
         _mode |= PILOT_AMRED;
         ret = 0;
-
+        controller_reset();
         // Disable running calibration.
         calibration_set_mag_gathering_enable(false);
         calibration_set_gyro_gathering_enable(false);

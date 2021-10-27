@@ -6,7 +6,6 @@
 
 #include "driver/mpu6050.h"
 #include "driver/ak8963.h"
-#include "driver/hmc5883l.h"
 
 #include "util/macro.h"
 #include "util/logger.h"
@@ -42,12 +41,9 @@ float _est_a[3]; // Filtered/Calibrated measurements from accelerometer. In X,Y,
 float _est_g[3]; // Filtered/Calibrated measurements from gyroscope(Degree/s). In X,Y,Z order.
 float _est_m[3]; // Filtered/Calibrated measurements from magnetometer. In X,Y,Z order.
 
-float _scale_accel; // Accelerometer sensitivity scale.
-float _scale_gyro; // Gyro  sensitivity scale.
-
-struct SMAFilter *_sma_a[3]; // Simeple Moving Average Filter for Accelerometer.
-struct SMAFilter *_sma_g[3]; // Simeple Moving Average Filter for Gyro.
-struct SMAFilter *_sma_m[3]; // Simeple Moving Average Filter for Megnetometer.
+struct SMAFilter *_sma_a[SMA_BUFFER_LENGTH_A]; // Simeple Moving Average Filter for Accelerometer.
+struct SMAFilter *_sma_g[SMA_BUFFER_LENGTH_G]; // Simeple Moving Average Filter for Gyro.
+struct SMAFilter *_sma_m[SMA_BUFFER_LENGTH_M]; // Simeple Moving Average Filter for Megnetometer.
 
 bool _mag_data_updated; // True if magnetometer is updated in this loop else false.
 
@@ -102,44 +98,33 @@ int imu_init() {
  */
 void imu_update() {
     // Read new value
-    int16_t a_read[3]; // Raw value from accelerometer.
-    int16_t g_read[3]; // Raw value from gyroscope.
-    int16_t m_read[3]; // Raw value from magnetometer.
     float g_calibrated[3]; // Calibrated value.
     float m_calibrated[3]; // Calibrated value.
 
     if (_mag_enabled) {
 
         mpu_read_all(
-            &a_read[0], &a_read[1], &a_read[2],
-            &g_read[0], &g_read[1], &g_read[2],
-            &m_read[1], &m_read[0], &m_read[2], // Swap 0 and 1 since AK8963 doesn't match MPU9250's XYZ axis.
+            &_raw_a[0], &_raw_a[1], &_raw_a[2],
+            &_raw_g[0], &_raw_g[1], &_raw_g[2],
+            &_raw_m[1], &_raw_m[0], &_raw_m[2], // Swap 0 and 1 since AK8963 doesn't match MPU9250's XYZ axis.
             &_mag_data_updated);
     } else {
 
         _mag_data_updated = false;
-        mpu_read_accel(&a_read[0], &a_read[1], &a_read[2]);
-        mpu_read_gyro(&g_read[0], &g_read[1], &g_read[2]);
+        mpu_read_accel(&_raw_a[0], &_raw_a[1], &_raw_a[2]);
+        mpu_read_gyro(&_raw_g[0], &_raw_g[1], &_raw_g[2]);
     }
 
-
-    // Update raw values, those variables are for debugging.
-    _raw_a[0] = (float)a_read[0] / _scale_accel;
-    _raw_a[1] = (float)a_read[1] / _scale_accel;
-    _raw_a[2] = (float)a_read[2] / _scale_accel;
-    _raw_g[0] = (float)g_read[0] / _scale_gyro * TO_RAD;
-    _raw_g[1] = (float)g_read[1] / _scale_gyro * TO_RAD;
-    _raw_g[2] = (float)g_read[2] / _scale_gyro * TO_RAD;
+    _raw_g[0] *= TO_RAD;
+    _raw_g[1] *= TO_RAD;
+    _raw_g[2] *= TO_RAD;
     
-    // Calibration.
+    //----- Calibration.
     calibration_do_gyro_calibration(
         _raw_g[0], _raw_g[1], _raw_g[2],
         &g_calibrated[0], &g_calibrated[1], &g_calibrated[2]);
 
     if (_mag_data_updated) {
-        _raw_m[0] = (float)m_read[0];
-        _raw_m[1] = (float)m_read[1];
-        _raw_m[2] = (float)m_read[2];
         calibration_do_mag_calibration(
             _raw_m[0],
             _raw_m[1],
@@ -150,11 +135,16 @@ void imu_update() {
         );
     }
 
-    // Filter
+    //----- Filter
     int i;
     for(i = 0; i < 3; i++) {
-        _est_a[i] = sma_update(_sma_a[i], _raw_a[i]);
-        _est_g[i] = sma_update(_sma_g[i], g_calibrated[i]);
+        //----- Use SMA Filter.
+        // _est_a[i] = sma_update(_sma_a[i], _raw_a[i]);
+        // _est_g[i] = sma_update(_sma_g[i], g_calibrated[i]);
+        //----- Or not use SMA FIlter.
+        _est_a[i] = _raw_a[i];
+        _est_g[i] = _raw_g[i];
+        
         if (_mag_data_updated) {
             _est_m[i] = sma_update(_sma_m[i], m_calibrated[i]);
         }
@@ -166,7 +156,7 @@ void imu_update() {
  * 
  * @return True if updated else false.
  */
-bool imu_mag_data_updated() {
+bool imu_mag_data_is_updated() {
     return _mag_data_updated;
 }
 
@@ -217,7 +207,7 @@ int imu_init_mpu() {
         return -1;
     }
     usleep(1000);
-    if ((_scale_gyro = mpu_set_gyro_fullscale(IMU_CFG_MPU_GYRO_FS)) == 0.0f) {
+    if (mpu_set_gyro_fullscale(IMU_CFG_MPU_GYRO_FS) != 0) {
         LOG_ERROR("Failed to set gyro fullscale.\n");
         return -1;
     }
@@ -227,7 +217,7 @@ int imu_init_mpu() {
         return -1;
     }
     usleep(1000);
-    if ((_scale_accel = mpu_set_accel_fullscale(IMU_CFG_MPU_ACCEL_FS)) == 0.0f) {
+    if (mpu_set_accel_fullscale(IMU_CFG_MPU_ACCEL_FS) != 0) {
         LOG_ERROR("Failed to set accel fullscale.\n");
         return -1;
     }

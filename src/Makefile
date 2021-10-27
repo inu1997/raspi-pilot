@@ -7,7 +7,7 @@ LIB = -lm -lpthread -ljson-c
 WARNING = -Wno-address-of-packed-member -Wimplicit
 
 all:
-	sh -c '$(CC) $(CFLAGS)';\
+	@sh -c '$(CC) $(CFLAGS)';\
 	EXIT_CODE=$$?;\
 	if [ $$EXIT_CODE = 0 ];\
 	then echo 'Build success!';\
@@ -15,9 +15,9 @@ all:
 	fi
 
 install:rpilot parameter.json
-	mkdir ~/.rpilot
-	cp parameter.json ~/.rpilot/
-	cp rpilot ~/.rpilot/
+	@mkdir ~/.rpilot
+	@cp parameter.json ~/.rpilot/
+	@cp rpilot ~/.rpilot/
 
 uninstall:
-	rm ~/.rpilot -r
+	@rm ~/.rpilot -r

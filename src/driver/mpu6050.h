@@ -44,14 +44,14 @@ extern const float ACCEL_SCALE_TABLE[4];
 int mpu_init();
 
 int mpu_read_all(
-    int16_t *ax, int16_t *ay, int16_t *az,
-    int16_t *gx, int16_t *gy, int16_t *gz,
-    int16_t *mx, int16_t *my, int16_t *mz,
+    float *ax, float *ay, float *az,
+    float *gx, float *gy, float *gz,
+    float *mx, float *my, float *mz,
     bool *mag_ready);
 
-int mpu_read_accel(int16_t *x, int16_t *y, int16_t *z);
+int mpu_read_accel(float *x, float *y, float *z);
 
-int mpu_read_gyro(int16_t *x, int16_t *y, int16_t *z);
+int mpu_read_gyro(float *x, float *y, float *z);
 
 int mpu_set_gyro_offsets(int16_t x, int16_t y, int16_t z);
 
@@ -77,13 +77,13 @@ int mpu_set_gyro_fchoice(uint8_t fchoice);
 
 int mpu_get_gyro_fchoice(uint8_t *fchoice);
 
-float mpu_set_accel_fullscale(uint8_t fs);
+int mpu_set_accel_fullscale(uint8_t fs);
 
-int mpu_get_accel_fullscale(uint8_t * fs);
+int mpu_get_accel_fullscale(uint8_t *fs);
 
-float mpu_set_gyro_fullscale(uint8_t fs);
+int mpu_set_gyro_fullscale(uint8_t fs);
 
-int mpu_get_gyro_fullscale(uint8_t * fs);
+int mpu_get_gyro_fullscale(uint8_t *fs);
 
 int mpu_enable_bypass();
 

@@ -28,9 +28,9 @@ int main() {
     while (1) {
         loop_delay_control();
         
-        // measurement_update();
+        measurement_update();
         
-        // pilot_update();
+        pilot_update();
 
         // LOG("Loop alive.\n");
     }
@@ -39,7 +39,7 @@ int main() {
 
 int init(){
     LOG("Initiating everything.\n");
-    // Register exit functions.]
+    // Register exit functions.
     if (signal_handler_init() != 0){
         LOG_ERROR("Failed to register signal handler.\n");
         return -1;
@@ -47,25 +47,25 @@ int init(){
     if (parameter_init() != 0) {
         return -1;
     }
-    if (camera_init() != 0) {
-        return -1;
-    }
     
     LOG("Initiating modules.\n");
     
     // Initiate modules
-    // if (measurement_init() != 0){
-    //     LOG_ERROR("Failed to initiate Measurement.\n");
-    //     return -1;
+    // if (camera_init() != 0) {
+        // return -1;
     // }
-    // if (pilot_init() != 0){
-    //     LOG_ERROR("Failed to initiate Pilot.\n");
-    //     return -1;
-    // }
-    // if (scheduler_init_real_time() != 0) {
-    //     LOG_ERROR("Failed to initiate Real Time.\n");
-    //     return -1;
-    // }
+    if (measurement_init() != 0){
+        LOG_ERROR("Failed to initiate Measurement.\n");
+        return -1;
+    }
+    if (pilot_init() != 0){
+        LOG_ERROR("Failed to initiate Pilot.\n");
+        return -1;
+    }
+    if (scheduler_init_real_time() != 0) {
+        LOG_ERROR("Failed to initiate Real Time.\n");
+        return -1;
+    }
 
     if (mavlink_init() != 0) {
         LOG_ERROR("Failed to initiate Remote.\n");

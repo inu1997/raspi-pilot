@@ -19,8 +19,8 @@
 #define SIZE_720P "1280x720"
 #define SIZE_1080P "1920x1080"
 
-#define CMD_FFMPEG_CAPTURE "ffmpeg -i /dev/video0 -f h264 pipe:"
-#define CMD_FFMPEG_STREAM "ffmpeg -i pipe: -f rtsp rtsp://localhost:8554/mystream"
+#define CMD_FFMPEG_CAPTURE "ffmpeg -i /dev/video0 -f h264 pipe: 2> /dev/null"
+#define CMD_FFMPEG_STREAM "ffmpeg -i pipe: -f rtsp rtsp://localhost:8554/mystream 2> /dev/null"
 
 pthread_t _camera_thread; // Camera thread.
 pthread_mutex_t _camera_mutex; // Camera mutex.
@@ -29,8 +29,8 @@ struct v4l2_capability _capability; // V4L2 Capability.
 
 FILE *capture; // popen ffmpeg capture process.
 FILE *stream; // popen ffmpeg rtsp stream process.
-FILE *video_file; // popen ffmpeg saving process of video.
-FILE *picture_file; // popen ffmpeg saving process of picture.
+FILE *video_file = NULL; // popen ffmpeg saving process of video.
+FILE *picture_file = NULL; // popen ffmpeg saving process of picture.
 
 bool _video_capturing; // True if recording video else false.
 bool _image_capturing; // True if shooting else false.
@@ -162,6 +162,8 @@ void camera_set_status_interval_msec(int msec) {
     _status_interval = msec;
 }
 
+//----- Information
+
 /**
  * @brief Get the interval between camera_capture_status.
  * 
@@ -253,8 +255,14 @@ void *camera_handler(void *arg) {
  * 
  */
 void camera_atexit() {
+    LOG("Closing camera.\n");
     pclose(capture);
     pclose(stream);
-    pclose(video_file);
-    pclose(picture_file);
+
+    if (video_file != NULL) {
+        pclose(video_file);
+    }
+    if (picture_file != NULL) {
+        pclose(picture_file);
+    }
 }

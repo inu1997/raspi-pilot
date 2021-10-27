@@ -36,7 +36,7 @@ void measurement_update() {
     
     imu_update();
     
-    if(imu_mag_data_updated()) {
+    if(imu_mag_data_is_updated()) {
         ahrs_update_9(
             imu_get_ax(),
             imu_get_ay(),
@@ -65,7 +65,7 @@ void measurement_update() {
             imu_get_raw_gz());
     }
     if (calibration_mag_gathering_is_enabled()) {
-        if (imu_mag_data_updated()) {
+        if (imu_mag_data_is_updated()) {
             calibration_gather_raw_mag(
                 imu_get_raw_mx(),
                 imu_get_raw_my(),

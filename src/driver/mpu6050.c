@@ -134,6 +134,9 @@ const float ACCEL_SCALE_TABLE[4] = {
     2048.0f
 };
 
+static float scale_g; // Resolution/Sensitivity value of Gyro.
+static float scale_a; // Resolution/Sensitivity value of Accelerometer.
+
 //-----
 
 /**
@@ -160,7 +163,13 @@ int mpu_init(){
     mpu_reset();
 
     MPU_WRITE(MPU_PWR_MGMT, 0x01);
+    usleep(1000);
     MPU_WRITE(MPU_INT_PIN_CFG, 0x30);
+    usleep(1000);
+
+    scale_a = ACCEL_SCALE_TABLE[0];
+    
+    scale_g = GYRO_SCALE_TABLE[0];
 
     LOG("Done.\n");
     return 0;
@@ -168,24 +177,25 @@ int mpu_init(){
 
 /**
  * @brief Read all data at once.
+ * Values are already scaled in the function.
  * 
- * @param ax Accelerometer reading x. 
- * @param ay Accelerometer reading y. 
- * @param az Accelerometer reading z. 
- * @param gx Gyroscope reading x.
- * @param gy Gyroscope reading y.
- * @param gz Gyroscope reading z.
- * @param mx Magnetometer reading x.
- * @param my Magnetometer reading y.
- * @param mz Magnetometer reading z.
+ * @param ax Accelerometer x axis value. 
+ * @param ay Accelerometer y axis value. 
+ * @param az Accelerometer z axis value. 
+ * @param gx Gyroscope x axis value.
+ * @param gy Gyroscope y axis value.
+ * @param gz Gyroscope z axis value.
+ * @param mx Magnetometer x axis value.
+ * @param my Magnetometer y axis value.
+ * @param mz Magnetometer z axis value.
  * @param mag_ready 
  *      True if AK8963 get new reading else false.
  * @return 0 if success else -1.
  */
 int mpu_read_all(
-    int16_t *ax, int16_t *ay, int16_t *az,
-    int16_t *gx, int16_t *gy, int16_t *gz,
-    int16_t *mx, int16_t *my, int16_t *mz,
+    float *ax, float *ay, float *az,
+    float *gx, float *gy, float *gz,
+    float *mx, float *my, float *mz,
     bool *mag_ready) {
 
     // 0x0c: Address of AK8963.
@@ -203,27 +213,40 @@ int mpu_read_all(
         return -1;
     }
 
-    uint8_t buf[22]; // ACCEL: 6, TEMP: 2, GYRO:6, EXT MAG: 8.
+    uint8_t buf[22]; // byte count: ACCEL: 6, TEMP: 2, GYRO:6, EXT MAG: 8.
+    int16_t _ax, _ay, _az, _gx, _gy, _gz, _mx, _my, _mz; // Temperary variables.
+
     MPU_READ_ARRAY(MPU_ACCEL_XOUT_H, buf, sizeof(buf));
 
 
-    *ax = ((int16_t)buf[0] << 8) | buf[1];
-    *ay = ((int16_t)buf[2] << 8) | buf[3];
-    *az = ((int16_t)buf[4] << 8) | buf[5];
+    _ax = ((int16_t)buf[0] << 8) | buf[1];
+    _ay = ((int16_t)buf[2] << 8) | buf[3];
+    _az = ((int16_t)buf[4] << 8) | buf[5];    
     
-    *gx = ((int16_t)buf[8] << 8) | buf[9];
-    *gy = ((int16_t)buf[10] << 8) | buf[11];
-    *gz = ((int16_t)buf[12] << 8) | buf[13];
+    _gx = ((int16_t)buf[8] << 8) | buf[9];
+    _gy = ((int16_t)buf[10] << 8) | buf[11];
+    _gz = ((int16_t)buf[12] << 8) | buf[13];
 
+    *ax = (float)_ax / scale_a;
+    *ay = (float)_ay / scale_a;
+    *az = (float)_az / scale_a;
+
+    *gx = (float)_gx / scale_g;
+    *gy = (float)_gy / scale_g;
+    *gz = (float)_gz / scale_g;
+    
     *mag_ready = false;
 
     if (buf[14] & 0x01) {
         // Data ready in ST1.
         if (!(buf[21] &0x08)) {
             // No overflow in ST2
-            *mx = ((int16_t)buf[16]) << 8 | buf[15];
-            *my = ((int16_t)buf[18]) << 8 | buf[17];
-            *mz = ((int16_t)buf[20]) << 8 | buf[19];
+            _mx = ((int16_t)buf[16]) << 8 | buf[15];
+            _my = ((int16_t)buf[18]) << 8 | buf[17];
+            _mz = ((int16_t)buf[20]) << 8 | buf[19];
+            *mx = (float)_mx;
+            *my = (float)_my;
+            *mz = (float)_mz;
             *mag_ready = true;
         } else {
             LOG_ERROR("Overflow!\n");
@@ -235,52 +258,62 @@ int mpu_read_all(
 
 /**
  * @brief Get the sensor value in G.
+ * Values are already scaled in the function.
  * 
  * @param x
- *      x data destination.
+ *      X axis.
  * @param y
- *      y data destination.
+ *      Y axis.
  * @param z
- *      z data destination.
+ *      Z axis.
  * @return 0 if success else -1.
  */
-int mpu_read_accel(int16_t *x, int16_t *y, int16_t *z){
+int mpu_read_accel(float *x, float *y, float *z){
     uint8_t data[6];
     
     if (MPU_READ_ARRAY(MPU_ACCEL_XOUT_H, data, 6) != 0){
         LOG_ERROR("Failed to read Accelerometer data.\n");
         return -1;
     }
-    
-    *x = ((int16_t)data[0] << 8) | data[1];
-    *y = ((int16_t)data[2] << 8) | data[3];
-    *z = ((int16_t)data[4] << 8) | data[5];
+    int16_t _x, _y, _z;
+    _x = ((int16_t)data[0] << 8) | data[1];
+    _y = ((int16_t)data[2] << 8) | data[3];
+    _z = ((int16_t)data[4] << 8) | data[5];
+
+    *x = (float)_x / scale_a;
+    *y = (float)_y / scale_a;
+    *z = (float)_z / scale_a;
 
     return 0;
 }
 
 /**
  * @brief Get the sensor value in degree/s.
+ * Values are already scaled in the function.
  * 
  * @param x
- *      x data destination.
+ *      X axis.
  * @param y
- *      y data destination.
+ *      Y axis.
  * @param z
- *      z data destination.
+ *      Z axis.
  * @return 0 if success else -1.
  */
-int mpu_read_gyro(int16_t *x, int16_t *y, int16_t *z){
+int mpu_read_gyro(float *x, float *y, float *z){
     uint8_t data[6];
     
     if (MPU_READ_ARRAY(MPU_GYRO_XOUT_H, data, 6) != 0){
         LOG_ERROR("Failed to read Gyro data.\n");
         return -1;
     }
-    
-    *x = ((int16_t)data[0] << 8) | data[1];
-    *y = ((int16_t)data[2] << 8) | data[3];
-    *z = ((int16_t)data[4] << 8) | data[5];
+    int16_t _x, _y, _z;
+    _x = ((int16_t)data[0] << 8) | data[1];
+    _y = ((int16_t)data[2] << 8) | data[3];
+    _z = ((int16_t)data[4] << 8) | data[5];
+
+    *x = (float)_x / scale_g;
+    *y = (float)_y / scale_g;
+    *z = (float)_z / scale_g;
     
     return 0;
 }
@@ -458,12 +491,14 @@ int mpu_get_gyro_fchoice(uint8_t *fchoice) {
  *      Defined in MPU datasheet and enum.
  * @return Scale of reading. Real_Value = Read / scale. 0.0f if fail.
  */
-float mpu_set_accel_fullscale(uint8_t fs) {
+int mpu_set_accel_fullscale(uint8_t fs) {
     if (MPU_WRITE_BIT(MPU_ACCEL_CONFIG, fs, 2, 3) != 0) {
-        return 0.0f;
+        return -1;
     }
-    
-    return ACCEL_SCALE_TABLE[fs];
+    scale_a = ACCEL_SCALE_TABLE[fs];
+    DEBUG("scale_a=%f.\n", scale_a);
+
+    return 0;
 }
 
 /**
@@ -473,7 +508,7 @@ float mpu_set_accel_fullscale(uint8_t fs) {
  *      Defined in MPU datasheet and enum.
  * @return 0 if success, else -1.
  */
-int mpu_get_accel_fullscale(uint8_t * fs) {
+int mpu_get_accel_fullscale(uint8_t *fs) {
     return MPU_READ_BIT(MPU_ACCEL_CONFIG, fs, 2, 3);
 }
 
@@ -484,12 +519,14 @@ int mpu_get_accel_fullscale(uint8_t * fs) {
  *      Defined in MPU datasheet and enum.
  * @return Scale of reading. Real_Value = Read / scale. 0.0f if fail.
  */
-float mpu_set_gyro_fullscale(uint8_t fs) {
+int mpu_set_gyro_fullscale(uint8_t fs) {
     if (MPU_WRITE_BIT(MPU_GYRO_CONFIG, fs, 2, 3) != 0) {
-        return 0.0f;
+        return -1;
     }
+    scale_g = GYRO_SCALE_TABLE[fs];
+    DEBUG("scale_g=%f\n", scale_g);
 
-    return GYRO_SCALE_TABLE[fs];
+    return 0;
 }
 /**
  * @brief Get fullscale of gyro.

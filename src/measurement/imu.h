@@ -7,7 +7,7 @@ int imu_init();
 
 void imu_update();
 
-bool imu_mag_data_updated();
+bool imu_mag_data_is_updated();
 
 void imu_set_mag_enable(bool enable);
 
