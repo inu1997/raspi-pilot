@@ -28,6 +28,4 @@ update:raspi-pilot
 uninstall:
 	@rm /bin/raspi-pilot
 	@rm ~/.raspi-pilot -r
-	@systemctl disable raspi-pilot.service
-	@systemctl stop raspi-pilot.service
 	@rm /etc/systemd/system/raspi-pilot.service
