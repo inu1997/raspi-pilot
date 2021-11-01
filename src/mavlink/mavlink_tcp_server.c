@@ -99,7 +99,7 @@ void *_server_handler(void *arg) {
         connection->on_end = on_disconnect;
         connection->exit_on_error = true;
         pthread_t thread;
-        pthread_create(&thread, NULL, mavlink_connection_handler, (void*)connection);
+        scheduler_create_rt_thread(&thread, 5, mavlink_connection_handler, (void*)connection);
         usleep(10000);
     }    
 

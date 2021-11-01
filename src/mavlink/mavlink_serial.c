@@ -55,5 +55,5 @@ int mavlink_init_serial(const char *dev) {
     connection->mav_channel = mavlink_ocupy_usable_channel();
     connection->exit_on_error = false;
     pthread_t thread;
-    return pthread_create(&thread, NULL, mavlink_connection_handler, (void*)connection);
+    return scheduler_create_rt_thread(&thread, 5, mavlink_connection_handler, (void*)connection);
 }

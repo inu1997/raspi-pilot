@@ -1,10 +1,13 @@
 #include "pilot.h"
 #include "controller.h"
 
+#include "util/loop.h"
 #include "util/logger.h"
 #include "util/debug.h"
 #include "util/macro.h"
 #include "util/parameter.h"
+
+#include "driver/pca9685.h"
 
 #include "measurement/measurement.h"
 #include "measurement/calibration.h"
@@ -32,6 +35,9 @@ static float _heading; // Locked heading.
 static float _avx_range; // Range of angular velocity x.
 static float _avy_range; // Range of angular velocity y.
 static float _avz_range; // Range of angular velocity z.
+static int _deadband; // Manual control deadband.
+static float _gimbal_velocity_x;
+static float _gimbal_position_x;
 
 //-----
 
@@ -47,7 +53,7 @@ enum BUTTON {
  */
 int pilot_init(){
     LOG("Initiating pilot.\n");
-    pthread_mutex_init(&_pilot_mutex, 0);
+    pthread_mutex_init(&_pilot_mutex, NULL);
 
     if (controller_init() != 0) {
         LOG_ERROR("Failed to initiate controller.\n");
@@ -59,19 +65,24 @@ int pilot_init(){
     parameter_get_value_no_mutex(parameter_keys[PARAMETER_MANUAL_AVX_RAN], &_avx_range);
     parameter_get_value_no_mutex(parameter_keys[PARAMETER_MANUAL_AVY_RAN], &_avy_range);
     parameter_get_value_no_mutex(parameter_keys[PARAMETER_MANUAL_AVZ_RAN], &_avz_range);
+    parameter_get_value_no_mutex(parameter_keys[PARAMETER_MANUAL_DEADBAND], &_deadband);
     LOG(
         "Loaded manual control ranges:\n"
         "   THR_MIN: %6.2f\n"
         "   THR_MAX: %6.2f\n"
         "   AVX_RANGE: %6.2f\n"
         "   AVY_RANGE: %6.2f\n"
-        "   AVZ_RANGE: %6.2f\n",
+        "   AVZ_RANGE: %6.2f\n"
+        "   DEADBAND: %d\n",
         _thr_min,
         _thr_max,
         _avx_range,
         _avy_range,
-        _avz_range);
+        _avz_range,
+        _deadband);
     
+    _gimbal_velocity_x = 0;
+    _gimbal_position_x = 1000.0f;
     _heading_is_locked = false;
     _prev_btn_state = 0;
     LOG("Done.\n");
@@ -94,6 +105,11 @@ void pilot_update(){
             _avz,
             _heading);
     } 
+    
+    // Control the gimbal
+    _gimbal_position_x += _gimbal_velocity_x * loop_get_interval();
+    _gimbal_position_x = LIMIT_MAX_MIN(_gimbal_position_x, 2000, 1000);
+    pca_write_servo(15, _gimbal_position_x);
 
     pilot_unlock_mutex();
 }
@@ -187,19 +203,21 @@ void pilot_handle_menual(
     uint16_t btns1, uint16_t btns2) {
     pilot_lock_mutex();
     
+    x = DEADBAND(x, _deadband);
+    y = DEADBAND(y, _deadband);
+    z = DEADBAND_OFFSET(z, _deadband, 500);
+    r = DEADBAND(r, _deadband);
+    s = DEADBAND(s, _deadband);
+    t = DEADBAND(t, _deadband);
+    
     // MAP Z axis to throttle.
-    if ((z > 500 + DEAD_BAND) || (z < 500 - DEAD_BAND)) {
-        pilot_set_thr(((float)z - 500.0) / 5.0);
-    } else {
-        pilot_set_thr(0);
-    }
+    pilot_set_thr(MAP(z, 500.0f, 1000.0f, 0.0f, 100.0f));
     
     // MAP R axis to avz.
-    if (r > DEAD_BAND || r < DEAD_BAND) {
-        pilot_set_avz(r == 0 ? 0 : -(float)r / 1000.0 * _avz_range);
-    } else {
-        pilot_set_avz(0);
-    }
+    pilot_set_avz(MAP(-r, -1000.0f, 1000.0f, -_avz_range, _avz_range));
+
+    // MAP X axis to gimbal valocity.
+    pilot_set_gimbal_velocity(MAP(x, -1000, 1000.0f, -600, 600));
     
     // Handle button.
     if ((_prev_btn_state ^ btns1) & BUTTON_CALIB_MAG) {
@@ -241,6 +259,21 @@ void pilot_set_mode(int mode){
 int pilot_get_mode(){
     return _mode;
 }
+
+/**
+ * @brief Set the deadband of manual control.
+ * 
+ * @param db 
+ *      Deadband.
+ */
+void pilot_set_deadband(int db);
+
+/**
+ * @brief Get the deadband of manual control.
+ * 
+ * @return Deadband.
+ */
+int pilot_get_deadband();
 
 // Range setter/getter.
 void pilot_set_thr_max(float max) {
@@ -292,12 +325,9 @@ float pilot_get_avz_range() {
  */
 void pilot_set_thr(float thr) {
     thr = LIMIT_MAX_MIN(thr, 100.0, -100.0);
-    _thr = thr == 0.0 ? 0.0 : thr / 100.0 * (_thr_max - _thr_min);
-    _thr += _thr > 0.0 ? _thr_min :
-            _thr < 0.0 ? -_thr_min :
-            0.0;
-
-    // DEBUG("New throttle: %4.1f, param: %4.1f.\n", _thr, thr);
+    _thr = thr > 0 ? MAP(thr, 0, 100.0f, _thr_min, _thr_max) :
+        thr < 0 ? MAP(thr, 0, -100.0f, -_thr_min, -_thr_max) :
+        0.0;
 }
 
 /**
@@ -399,6 +429,22 @@ float pilot_get_avz() {
  */
 bool pilot_heading_is_locked() {
     return _heading_is_locked;
+}
+
+void pilot_set_gimbal_velocity(float radsec) {
+    _gimbal_velocity_x = radsec;
+}
+
+float pilot_get_gimbal_velocity() {
+    return _gimbal_velocity_x;
+}
+
+void pilot_set_gimbal_position(float position) {
+    _gimbal_position_x = position;
+}
+
+float pilot_get_gimbal_position() {
+    return _gimbal_position_x;
 }
 
 /**

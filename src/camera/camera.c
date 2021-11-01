@@ -8,6 +8,7 @@
 
 #include "util/logger.h"
 #include "util/debug.h"
+#include "util/system/scheduler.h"
 
 #include "mavlink/c_library_v2/common/mavlink.h"
 
@@ -59,7 +60,7 @@ int camera_init() {
 
     atexit(camera_atexit);
 
-    return pthread_create(&_camera_thread, NULL, camera_handler, NULL);
+    return scheduler_create_rt_thread(&_camera_thread, 10, camera_handler, NULL);
 }
 
 int camera_set_video_capturing(bool capture) {

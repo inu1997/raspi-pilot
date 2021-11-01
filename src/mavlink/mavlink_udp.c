@@ -19,6 +19,7 @@
 
 #include "util/logger.h"
 #include "util/debug.h"
+#include "util/system/scheduler.h"
 
 #define GC_PORT 14550
 #define GC_IP "192.168.0.10"
@@ -27,7 +28,7 @@ void *mavlink_udp_handler(void *arg);
 
 int mavlink_init_udp() {
     pthread_t th;
-    return pthread_create(&th, NULL, mavlink_udp_handler, NULL);
+    return scheduler_create_rt_thread(&th, 5, mavlink_udp_handler, NULL);
 }
 
 void *mavlink_udp_handler(void *arg) {

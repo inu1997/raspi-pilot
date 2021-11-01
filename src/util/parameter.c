@@ -19,6 +19,7 @@ const char *parameter_keys[] = {
     "MANUAL_AVX_RAN",
     "MANUAL_AVY_RAN",
     "MANUAL_AVZ_RAN",
+    "MANUAL_DEADBAND",
     "CALIB_OFFSET_GX",
     "CALIB_OFFSET_GY",
     "CALIB_OFFSET_GZ",

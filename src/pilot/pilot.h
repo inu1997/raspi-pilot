@@ -55,6 +55,10 @@ void pilot_set_mode(int mode);
 int pilot_get_mode();
 
 // Range setter/getter.
+void pilot_set_deadband(int db);
+
+int pilot_get_deadband();
+
 void pilot_set_thr_max(float max);
 
 float pilot_get_thr_max();
@@ -91,6 +95,14 @@ float pilot_get_avy();
 void pilot_set_avz(float radsec);
 
 float pilot_get_avz();
+
+void pilot_set_gimbal_velocity(float radsec);
+
+float pilot_get_gimbal_velocity();
+
+void pilot_set_gimbal_position(float position);
+
+float pilot_get_gimbal_position();
 
 bool pilot_heading_is_locked();
 

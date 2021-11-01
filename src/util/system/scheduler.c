@@ -4,9 +4,9 @@
 
 #include <stdlib.h>
 #include <unistd.h>
-#include <pthread.h>
 #include <sys/mman.h>
 #include <sys/time.h>
+#include <pthread.h>
 
 void scheduler_unlock_memory() {
     LOG("Unlocking all memory.\n");
@@ -71,7 +71,7 @@ int scheduler_init_real_time() {
  *      Name of the thread. Displayed in ps -ax.
  * @return pthread_create return value.
  */
-int scheduler_create_rt_thread(pthread_t *thread, int priority, void *(*func)(), void *arg, const char *thread_name) {
+int scheduler_create_rt_thread(pthread_t *thread, int priority, void *(*func)(), void *arg) {
     int ret;
     pthread_attr_t attr;
     if ((ret = pthread_attr_init(&attr)) != 0) {
