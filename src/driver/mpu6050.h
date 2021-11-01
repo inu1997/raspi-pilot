@@ -43,6 +43,8 @@ extern const float ACCEL_SCALE_TABLE[4];
 
 int mpu_init();
 
+int mpu_reset();
+
 int mpu_read_all(
     float *ax, float *ay, float *az,
     float *gx, float *gy, float *gz,
@@ -90,8 +92,6 @@ int mpu_enable_bypass();
 int mpu_disable_bypass();
 
 int mpu_enable_master_mode();
-
-int mpu_reset();
 
 bool mpu_is_using_spi();
 

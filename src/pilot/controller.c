@@ -1,5 +1,5 @@
 #include "controller.h"
-#include "actuator/motor.h"
+#include "driver/pca9685.h"
 #include "pid.h"
 
 #include "measurement/measurement.h"
@@ -43,24 +43,22 @@
 struct PID *pidsetting_ax; // Attitude X PID.
 struct PID *pidsetting_ay; // Attitude Y PID.
 struct PID *pidsetting_az; // Attitude Z PID.
-
 struct PID *pidsetting_avx; // Angular Velocity X PID.
 struct PID *pidsetting_avy; // Angular Velocity Y PID.
 struct PID *pidsetting_avz; // Angular Velocity Z PID.
-
 struct PID *pidsetting_va; // Vertical acceleration PID.
 struct PID *pidsetting_alt; // Altitude hold PID.
 
 //----- PID outputs
 
-float _output_pid_ax; // Output of Attitude X PID.
-float _output_pid_ay; // Output of Attitude Y PID.
-float _output_pid_az; // Output of Attitude Z PID.
-float _output_pid_avx; // Output of Angular Velocity X PID.
-float _output_pid_avy; // Output of Angular Velocity Y PID.
-float _output_pid_avz; // Output of Angular Velocity Z PID.
-float _output_pid_va; // Output of Vertical Acceleration PID.
-float _output_pid_alt;  // Output of altitude hold PID
+static float _output_pid_ax; // Output of Attitude X PID.
+static float _output_pid_ay; // Output of Attitude Y PID.
+static float _output_pid_az; // Output of Attitude Z PID.
+static float _output_pid_avx; // Output of Angular Velocity X PID.
+static float _output_pid_avy; // Output of Angular Velocity Y PID.
+static float _output_pid_avz; // Output of Angular Velocity Z PID.
+static float _output_pid_va; // Output of Vertical Acceleration PID.
+static float _output_pid_alt;  // Output of altitude hold PID
 
 //----- Variables
 
@@ -171,10 +169,15 @@ int controller_init() {
         pid_get_output_limit(pidsetting_alt)
     );
 
-    if (motor_init() != 0) {
+    if (pca_init() != 0) {
         LOG_ERROR("Failed to initiate motor.\n");
         return -1;{}
     }
+    
+    int freq;
+    parameter_get_value_no_mutex(parameter_keys[PARAMETER_MTR_PWM_FREQ], &freq);
+    pca_set_frequency(freq);
+
     LOG("Initiating GPIO.\n");
     gpio_set_export(PIN_M1_CCW);
     gpio_set_export(PIN_M1_CW);
@@ -216,10 +219,11 @@ void controller_update(uint8_t mode, float thr, float avz, float heading) {
         _thr[1] = LIMIT_MAX_MIN(_thr[1], 100.0, -100.0);
         _thr[2] = LIMIT_MAX_MIN(_thr[2], 100.0, -100.0);
         _thr[3] = LIMIT_MAX_MIN(_thr[3], 100.0, -100.0);
-        motor_set(0, fabsf(_thr[0]));
-        motor_set(1, fabsf(_thr[1]));
-        motor_set(2, fabsf(_thr[2]));
-        motor_set(3, fabsf(_thr[3]));
+
+        pca_write_throttle(0, fabsf(_thr[0]));
+        pca_write_throttle(1, fabsf(_thr[1]));
+        pca_write_throttle(2, fabsf(_thr[2]));
+        pca_write_throttle(3, fabsf(_thr[3]));
         
         // Turn on direction.
         static uint32_t prev_thr[4]; // Be used to detect direction change.
@@ -254,18 +258,17 @@ void controller_update(uint8_t mode, float thr, float avz, float heading) {
         prev_thr[3] = *(uint32_t*)&_thr[3];
 
     } else {
-        // Just simply turn off all motor.
-        motor_turn_off(0);
-        motor_turn_off(1);
-        motor_turn_off(2);
-        motor_turn_off(3);
+        pca_write_pwm(0, 0);
+        pca_write_pwm(1, 0);
+        pca_write_pwm(2, 0);
+        pca_write_pwm(3, 0);
     }
 }
 
 void controller_get_thr_output(float *thr1, float *thr2, float *thr3, float *thr4);
 
 void controller_reset() {
-    motor_turn_off_all();
+    pca_reset();
     pid_reset(pidsetting_ax);
     pid_reset(pidsetting_ay);
     pid_reset(pidsetting_az);

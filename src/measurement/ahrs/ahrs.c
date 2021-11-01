@@ -11,10 +11,10 @@
 
 #define COMPLEMENTARY_ALPHA 0.98
 
-struct Quaternion _q; // Quaternion.
-float _r; // Attitude Roll in Degree.
-float _p; // Attitude Pitch in Degree.
-float _y; // Attitude Yaw in Degree.
+static struct Quaternion _q; // Quaternion.
+static float _r; // Attitude Roll in Degree.
+static float _p; // Attitude Pitch in Degree.
+static float _y; // Attitude Yaw in Degree.
 
 /**
  * @brief Initiator of ahrs, will initiate IMU and MAG also.
@@ -117,17 +117,6 @@ void ahrs_update_6(float ax, float ay, float az, float gx, float gy, float gz) {
 
     quat_to_euler(&_q, &_r, &_p, &_y);
 #endif // UPDATE_METHOD_MADGWICK
-}
-
-/**
- * @brief Reset all ahrs variables.
- */
-void ahrs_reset(){
-    _r = _p = _y = 0;
-    _q.q1 = 1.0f;
-    _q.q2 = 0.0;
-    _q.q3 = 0.0;
-    _q.q4 = 0.0;
 }
 
 /**

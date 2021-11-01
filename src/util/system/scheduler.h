@@ -18,6 +18,6 @@
 
 int scheduler_init_real_time();
 
-int scheduler_create(pthread_t *thread, int priority, void *(*func)(), void *arg);
+int scheduler_create_rt_thread(pthread_t *thread, int priority, void *(*func)(), void *arg, const char *thread_name);
 
 #endif // _SCHEDULER_H_

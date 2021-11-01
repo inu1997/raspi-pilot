@@ -5,11 +5,11 @@
 
 #define TIME_DIFF loop_get_interval()
 
-float _pressure; // Pressure.
-float _pressure_diff; // Pressure differential.
-float _altitude; // Altitude.
-float _climb_rate; // Climb rate from altitude diff.
-float _temp; // Temperature.
+static float _pressure; // Pressure.
+static float _pressure_diff; // Pressure differential.
+static float _altitude; // Altitude.
+static float _climb_rate; // Climb rate from altitude diff.
+static float _temp; // Temperature.
 
 /**
  * @brief Initiate Barometer.

@@ -27,16 +27,16 @@ pthread_mutex_t _camera_mutex; // Camera mutex.
 
 struct v4l2_capability _capability; // V4L2 Capability.
 
-FILE *capture; // popen ffmpeg capture process.
-FILE *stream; // popen ffmpeg rtsp stream process.
-FILE *video_file = NULL; // popen ffmpeg saving process of video.
-FILE *picture_file = NULL; // popen ffmpeg saving process of picture.
+static FILE *capture; // popen ffmpeg capture process.
+static FILE *stream; // popen ffmpeg rtsp stream process.
+static FILE *video_file = NULL; // popen ffmpeg saving process of video.
+static FILE *picture_file = NULL; // popen ffmpeg saving process of picture.
 
-bool _video_capturing; // True if recording video else false.
-bool _image_capturing; // True if shooting else false.
-float _image_capture_interval; // Interval between capturing.
-int _n_images_to_take; // Number of image to take, set through MAVLink command.
-int _status_interval; // msec interval to send MAVLink camera capture status.
+static bool _video_capturing; // True if recording video else false.
+static bool _image_capturing; // True if shooting else false.
+static float _image_capture_interval; // Interval between capturing.
+static int _n_images_to_take; // Number of image to take, set through MAVLink command.
+static int _status_interval; // msec interval to send MAVLink camera capture status.
 
 void *camera_handler(void *arg);
 void camera_atexit();

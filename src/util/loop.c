@@ -4,11 +4,12 @@
 
 #include <pthread.h>
 
-struct timeval _orig_tv;
+static struct timeval _loop_tv;
 
-float _interval;
+static float _loop_interval;
 
-pthread_mutex_t _loop_mutex;
+static pthread_mutex_t _loop_mutex;
+
 //-----
 
 /*
@@ -19,8 +20,8 @@ pthread_mutex_t _loop_mutex;
  * @return 0 if success else 1.
  */
 int loop_init(float rate_hz){
-    _interval = 1.0 / rate_hz;
-    _orig_tv.tv_sec = _orig_tv.tv_usec = 0;
+    _loop_interval = 1.0 / rate_hz;
+    _loop_tv.tv_sec = _loop_tv.tv_usec = 0;
     pthread_mutex_init(&_loop_mutex, NULL);
 
     return 0;
@@ -31,26 +32,26 @@ int loop_init(float rate_hz){
  * 
  */
 void loop_delay_control(){
-    if(!tv_is_updated(&_orig_tv)){
-        gettimeofday(&_orig_tv, NULL);
+    if(!tv_is_updated(&_loop_tv)){
+        gettimeofday(&_loop_tv, NULL);
     }
     
     unsigned long usec;
 
     struct timeval now;
     gettimeofday(&now, NULL);
-    while((usec = tv_get_diff_usec_ul(&_orig_tv, &now)) < (unsigned long)(1e6f * _interval)){
+    while((usec = tv_get_diff_usec_ul(&_loop_tv, &now)) < (unsigned long)(1e6f * _loop_interval)){
         // Using busy loop to control the loop timing.
         gettimeofday(&now, NULL);
     }
 
     // Check delay to make sure it's not over-delayed.
-    if(usec > (unsigned long)(1e6f * _interval) + 10){
+    if(usec > (unsigned long)(1e6f * _loop_interval) + 10){
         LOG_ERROR("Loop take too long, %d microseconds.\n", usec);
     }
     
     // Update original timeval
-    gettimeofday(&_orig_tv, NULL);
+    gettimeofday(&_loop_tv, NULL);
 
 }
 
@@ -61,7 +62,7 @@ void loop_delay_control(){
  *      Loop rate.
  */
 void loop_set_rate(float hz_rate){
-    _interval = 1.0f / hz_rate;
+    _loop_interval = 1.0f / hz_rate;
 }
 
 /**
@@ -70,7 +71,7 @@ void loop_set_rate(float hz_rate){
  * @return Loop rate in Hz.
  */
 float loop_get_rate(){
-    return 1.0f / _interval;
+    return 1.0f / _loop_interval;
 }
 
 /**
@@ -80,7 +81,7 @@ float loop_get_rate(){
  *      Interval.
  */
 void loop_set_interval(float interval){
-    _interval = interval;
+    _loop_interval = interval;
 }
 
 /**
@@ -89,7 +90,7 @@ void loop_set_interval(float interval){
  * @return Loop interval.
  */
 float loop_get_interval(){
-    return _interval;
+    return _loop_interval;
 }
 
 /**

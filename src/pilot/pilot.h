@@ -17,7 +17,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define PILOT_AMRED 0x80
+#define PILOT_AMRED_FLAG 0x80
 
 // Same as mavlink mode
 enum PILOT_MODE{

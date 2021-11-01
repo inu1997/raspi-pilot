@@ -4,10 +4,10 @@
 #include "util/logger.h"
 #include "util/debug.h"
 
-float _voltage;
-float _current;
-float _comsumed_current;
-float _remain_time_sec;
+static float _voltage;
+static float _current;
+static float _comsumed_current;
+static float _remain_time_sec;
 
 int battery_init() {
     LOG("Initiating Battery measurement.\n");

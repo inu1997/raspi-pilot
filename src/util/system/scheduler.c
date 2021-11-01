@@ -67,9 +67,11 @@ int scheduler_init_real_time() {
  *      Function of thread.
  * @param arg 
  *      Argument of pthread_create(..., arg);
+ * @param thread_name
+ *      Name of the thread. Displayed in ps -ax.
  * @return pthread_create return value.
  */
-int scheduler_create(pthread_t *thread, int priority, void *(*func)(), void *arg) {
+int scheduler_create_rt_thread(pthread_t *thread, int priority, void *(*func)(), void *arg, const char *thread_name) {
     int ret;
     pthread_attr_t attr;
     if ((ret = pthread_attr_init(&attr)) != 0) {
@@ -99,7 +101,7 @@ int scheduler_create(pthread_t *thread, int priority, void *(*func)(), void *arg
         LOG_ERROR("Failed to create thread.\n");
         goto EXIT;
     }
-    
+
     EXIT:
     pthread_attr_destroy(&attr);
     return ret;

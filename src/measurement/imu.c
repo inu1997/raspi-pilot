@@ -33,21 +33,21 @@
 #define IMU_CFG_MPU_ACCEL_DLPF 0
 #define IMU_CFG_AK_16_BIT
 
-float _raw_a[3]; // Raw/Uncalibrated measurements from Accelerometer. In X,Y,Z order.
-float _raw_g[3]; // Raw/Uncalibrated measurements from Gyroscope(Degree/s). In X,Y,Z order.
-float _raw_m[3]; // Raw/Uncalibrated measurements from Magnetometer. In X,Y,Z order.
+static float _raw_a[3]; // Raw/Uncalibrated measurements from Accelerometer. In X,Y,Z order.
+static float _raw_g[3]; // Raw/Uncalibrated measurements from Gyroscope(Degree/s). In X,Y,Z order.
+static float _raw_m[3]; // Raw/Uncalibrated measurements from Magnetometer. In X,Y,Z order.
 
-float _est_a[3]; // Filtered/Calibrated measurements from accelerometer. In X,Y,Z order.
-float _est_g[3]; // Filtered/Calibrated measurements from gyroscope(Degree/s). In X,Y,Z order.
-float _est_m[3]; // Filtered/Calibrated measurements from magnetometer. In X,Y,Z order.
+static float _est_a[3]; // Filtered/Calibrated measurements from accelerometer. In X,Y,Z order.
+static float _est_g[3]; // Filtered/Calibrated measurements from gyroscope(Degree/s). In X,Y,Z order.
+static float _est_m[3]; // Filtered/Calibrated measurements from magnetometer. In X,Y,Z order.
 
-struct SMAFilter *_sma_a[SMA_BUFFER_LENGTH_A]; // Simeple Moving Average Filter for Accelerometer.
-struct SMAFilter *_sma_g[SMA_BUFFER_LENGTH_G]; // Simeple Moving Average Filter for Gyro.
-struct SMAFilter *_sma_m[SMA_BUFFER_LENGTH_M]; // Simeple Moving Average Filter for Megnetometer.
+static struct SMAFilter *_sma_a[SMA_BUFFER_LENGTH_A]; // Simeple Moving Average Filter for Accelerometer.
+static struct SMAFilter *_sma_g[SMA_BUFFER_LENGTH_G]; // Simeple Moving Average Filter for Gyro.
+static struct SMAFilter *_sma_m[SMA_BUFFER_LENGTH_M]; // Simeple Moving Average Filter for Megnetometer.
 
-bool _mag_data_updated; // True if magnetometer is updated in this loop else false.
+static bool _mag_data_updated; // True if magnetometer is updated in this loop else false.
 
-static bool _mag_enabled;
+static bool _mag_enabled; // True if magnetometer is enabled and being used.
 
 int imu_init_mpu();
 

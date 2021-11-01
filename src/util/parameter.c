@@ -70,9 +70,9 @@ const char *parameter_keys[] = {
     "PID_ALT_O_LIMIT"
 };
 
-pthread_mutex_t _parameter_mutex;
+static pthread_mutex_t _parameter_mutex;
 
-json_object *_param_json;
+static json_object *_param_json;
 
 //-----
 

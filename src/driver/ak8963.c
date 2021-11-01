@@ -71,6 +71,15 @@ int ak_init(){
 }
 
 /**
+ * @brief Reset the AK8963 module.
+ * 
+ * @return 0 if success else -1.
+ */
+int ak_reset() {
+    return AK_WRITE_BIT(AK_CNTL2, 1, 1, 0);
+}
+
+/**
  * @brief Read sensitivity adjustment value in AK Fuse ROM.
  * RealValue = Read * ((ASA - 128) * 0.5 / 128 + 1)
  * 
@@ -196,8 +205,4 @@ int ak_set_mode(uint8_t mode) {
 
 int ak_get_mode(uint8_t *mode) {
     return AK_READ_BIT(AK_CNTL1, mode, 4, 0);
-}
-
-int ak_reset() {
-    return AK_WRITE_BIT(AK_CNTL2, 1, 1, 0);
 }

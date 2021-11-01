@@ -176,6 +176,20 @@ int mpu_init(){
 }
 
 /**
+ * @brief Reset MPU module.
+ * 
+ * @return 0 if success, else -1.
+ */
+int mpu_reset() {
+    if (MPU_WRITE_BIT(MPU_PWR_MGMT, 1, 1, 7) != 0) {
+        LOG_ERROR("Failed to reset.\n");
+        return -1;
+    }
+    usleep(1000);
+    return 0;
+}
+
+/**
  * @brief Read all data at once.
  * Values are already scaled in the function.
  * 
@@ -605,20 +619,6 @@ int mpu_enable_master_mode() {
 
     EXIT:
     return ret;
-}
-
-/**
- * @brief Reset MPU module.
- * 
- * @return 0 if success, else -1.
- */
-int mpu_reset() {
-    if (MPU_WRITE_BIT(MPU_PWR_MGMT, 1, 1, 7) != 0) {
-        LOG_ERROR("Failed to reset.\n");
-        return -1;
-    }
-    usleep(1000);
-    return 0;
 }
 
 /**

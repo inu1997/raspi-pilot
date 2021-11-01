@@ -27,6 +27,8 @@ enum AK_MODE {
 
 int ak_init();
 
+int ak_reset();
+
 int ak_read_single(int16_t *x, int16_t *y, int16_t *z);
 
 int ak_read(int16_t *x, int16_t *y, int16_t *z);
@@ -42,7 +44,5 @@ int ak_get_bit(uint8_t *bit);
 int ak_set_mode(uint8_t mode);
 
 int ak_get_mode(uint8_t *mode);
-
-int ak_reset();
 
 #endif // _AK8963_H_

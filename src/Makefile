@@ -1,6 +1,7 @@
 CC = gcc
 FILES = *.c */*.c */*/*.c
 CFLAGS = $(FILES) -I$(INC) $(LIB) $(WARNING) -o $(OUTPUT)
+LDFLAGS = -L/usr/local/lib
 OUTPUT = rpilot
 INC = .
 LIB = -lm -lpthread -ljson-c

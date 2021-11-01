@@ -15,23 +15,23 @@
 #define DEFAULT_MODE PILOT_MODE_PREFLIGHT
 #define DEAD_BAND 50
 
-int _mode = DEFAULT_MODE;
-bool _heading_is_locked;
+static int _mode = DEFAULT_MODE;
+static bool _heading_is_locked;
 
-pthread_mutex_t _pilot_mutex;
+static pthread_mutex_t _pilot_mutex;
 
 //----- Limitations
-uint16_t _prev_btn_state;
-float _thr; // Throttle.
-float _thr_min; // throttle stroke min. Only clamp if manual control got non-zero throttle.
-float _thr_max; // throttle stroke max.
-float _avx; // Angular velocity x.
-float _avy; // Angular velocity y.
-float _avz; // Angular velocity z.
-float _heading; // Locked heading.
-float _avx_range; // Range of angular velocity x.
-float _avy_range; // Range of angular velocity y.
-float _avz_range; // Range of angular velocity z.
+static uint16_t _prev_btn_state;
+static float _thr; // Throttle.
+static float _thr_min; // throttle stroke min. Only clamp if manual control got non-zero throttle.
+static float _thr_max; // throttle stroke max.
+static float _avx; // Angular velocity x.
+static float _avy; // Angular velocity y.
+static float _avz; // Angular velocity z.
+static float _heading; // Locked heading.
+static float _avx_range; // Range of angular velocity x.
+static float _avy_range; // Range of angular velocity y.
+static float _avz_range; // Range of angular velocity z.
 
 //-----
 
@@ -89,7 +89,7 @@ void pilot_update(){
     
     if (pilot_is_armed()) {
         controller_update(
-            _mode & (~PILOT_AMRED),
+            _mode & (~PILOT_AMRED_FLAG),
             _thr,
             _avz,
             _heading);
@@ -120,7 +120,7 @@ void pilot_unlock_mutex() {
  * @return True if armed else false.
  */
 bool pilot_is_armed() {
-    return _mode & PILOT_AMRED ? true : false;
+    return _mode & PILOT_AMRED_FLAG ? true : false;
 }
 
 /**
@@ -133,7 +133,7 @@ int pilot_arm() {
     
     int ret = -1;
     if (!pilot_is_armed()) {
-        _mode |= PILOT_AMRED;
+        _mode |= PILOT_AMRED_FLAG;
         ret = 0;
         controller_reset();
         // Disable running calibration.
@@ -160,7 +160,7 @@ int pilot_disarm() {
     
     int ret = -1;
     if (pilot_is_armed()) {
-        _mode &= ~PILOT_AMRED;
+        _mode &= ~PILOT_AMRED_FLAG;
         ret = 0;
         controller_reset();
     }
@@ -229,7 +229,7 @@ void pilot_handle_menual(
  *      Mode to set flight controller.
  */
 void pilot_set_mode(int mode){
-    _mode &= PILOT_AMRED;
+    _mode &= PILOT_AMRED_FLAG;
     _mode |= mode & 0x7f;
 }
 

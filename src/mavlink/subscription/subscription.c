@@ -10,7 +10,7 @@ struct Subscriptor {
     pthread_mutex_t mutex;
 };
 
-struct Subscriptor subs[MAVLINK_COMM_NUM_BUFFERS]; // Subscriptor array of all subscriptors.
+static struct Subscriptor subs[MAVLINK_COMM_NUM_BUFFERS]; // Subscriptor array of all subscriptors.
 
 #define NUMBER_OF_SUBSCRIPTOR (sizeof(subs) / sizeof(struct Subscriptor))
 

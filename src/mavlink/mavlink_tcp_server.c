@@ -16,11 +16,11 @@
 
 #define PORT 1128
 
-int _server_fd; // File descriptor of server socket.
+static int _server_fd; // File descriptor of server socket.
 
-int _n_connection; // Number of connections.
+static int _n_connection; // Number of connections.
 
-pthread_t _server_thread; // Thread handler of server.
+static pthread_t _server_thread; // Thread handler of server.
 
 void *_server_handler(void *arg);
 
