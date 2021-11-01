@@ -10,7 +10,7 @@
 #include <pthread.h>
 #include <json-c/json.h>
 
-#define PARAM_FILE "parameter.json"
+#define PARAM_FILE "/root/.raspi-pilot/parameter.json"
 
 const char *parameter_keys[] = {
     "MTR_PWM_FREQ",
