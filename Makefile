@@ -20,7 +20,6 @@ install:raspi-pilot parameter.json raspi-pilot.service
 	@cp parameter.json ~/.raspi-pilot/
 	@cp raspi-pilot /bin/raspi-pilot
 	@cp raspi-pilot.service /etc/systemd/system/raspi-pilot.service
-	@systemctl enable raspi-pilot.service
 
 update:raspi-pilot
 	@cp raspi-pilot /bin/raspi-pilot
