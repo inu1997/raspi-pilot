@@ -49,24 +49,28 @@ sudo make uninstall
 This will clean up the binary file, parameter.json, /root/.raspi-pilot and the service.
 
 ## Code structrue
-* driver
-    * I2C/SPI device driver.
-* measurement
-    * Read sensor value and compute results.
-* pilot
-    * Handle manual control and update actuator.
-* mavlink
-    * MAVLink utilities.
-* util
-    * Coding utilities.
+* driver  
+    * I2C/SPI device driver.  
+* measurement  
+    * Read sensor value and compute results.  
+* pilot  
+    * Handle manual control and update actuator.  
+* mavlink  
+    * MAVLink utilities.  
+* util  
+    * Coding utilities.  
+* ~~camera~~
+    * ~~For camera streaming.~~  
+
+**Currently the only way to use USB Webcam and PREEMPT_RT Kernel patch is to disable dwc_otg.fiq_enable which causes ffmpeg unusable.**
+**The alternative way is to use v4l2rtspserver to stream the Webcam.**
 
 ## To-Do
 - [x] Correct IMU reading.
 - [x] MAVLink support.
-- [x] Parameter support.
-- [x] Pilotable.
+- [x] Parameter support. Require reboot.
+- [x] Simply pilotable.
 - [x] Camera stream.
-- [ ] More MAVLink message to complete.
 
 ## Full picture
 ![image](./picture/outside.png "Outside")
