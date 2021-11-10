@@ -106,3 +106,30 @@ int scheduler_create_rt_thread(pthread_t *thread, int priority, void *(*func)(),
     pthread_attr_destroy(&attr);
     return ret;
 }
+
+/**
+ * @brief Make the thread which called this function Real-Time.
+ * 
+ * @param enable 
+ *      True if make it Real Time else false to make it normal thread.
+ * @param priority 
+ *      Priority of the thread.
+ * @return 0 if success else -1.
+ */
+int scheduler_set_real_time(bool enable, int priority) {
+    int ret;
+    if (enable == true) {
+        // Make it RT thread.
+        struct sched_param param = {
+            .sched_priority = priority
+        };
+        ret = pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
+    } else {
+        // Make it normal thread.
+        struct sched_param param = {
+            .sched_priority = 0
+        };
+        ret = pthread_setschedparam(pthread_self(), SCHED_OTHER, &param);
+    }
+    return ret;
+}

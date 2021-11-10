@@ -70,7 +70,6 @@ This will clean up the binary file, parameter.json, /root/.raspi-pilot and the s
 - [x] MAVLink support.
 - [x] Parameter support. Require reboot.
 - [x] Simply pilotable.
-- [x] Camera stream.
 
 ## Full picture
 ![image](./picture/outside.png "Outside")

@@ -11,13 +11,33 @@
 #include <termios.h>
 #include <pthread.h>
 
+void *serial_handler(void *arg);
 
 int mavlink_init_serial(const char *dev) {
+    char *_dev = malloc(32);
+    strcpy(_dev, dev);
+    pthread_t thread;
+    return pthread_create(&thread, NULL, serial_handler, (void*)_dev);
+}
+
+/**
+ * @brief Serial communication handler.
+ * 
+ * @param arg 
+ *      Device path.
+ * @return void* 
+ */
+void *serial_handler(void *arg) {
+    pthread_detach(pthread_self());
+
+    char dev[32]; // Path to device.
+    strcpy(dev, arg);
+    free(arg);
     // Initialize serial device.
     int fd;
     if ((fd = open(dev, O_RDWR | O_NOCTTY | O_NDELAY)) == -1) {
         LOG_ERROR("Failed to open device \"%s\".\n", dev);
-        return -1;
+        goto EXIT;
     }
 
     LOG("Successfully opened device\"%s\".\n", dev);
@@ -46,14 +66,9 @@ int mavlink_init_serial(const char *dev) {
     t.c_lflag &= ~(ISIG | ICANON | IEXTEN | ECHO | ECHOE | ECHOK | ECHOCTL | ECHOKE);
     t.c_cc[VMIN] = 0;
     tcsetattr(fd, TCSANOW, &t);
-    
-    struct MAVLinkFile *connection = malloc(sizeof(struct MAVLinkFile));
-    connection->fd = fd;
-    strcpy(connection->name, dev);
-    connection->on_begin = NULL;
-    connection->on_end = NULL;
-    connection->mav_channel = mavlink_ocupy_usable_channel();
-    connection->exit_on_error = false;
-    pthread_t thread;
-    return scheduler_create_rt_thread(&thread, 5, mavlink_connection_handler, (void*)connection);
+
+    mavlink_communication(fd, false, false, true);
+
+    EXIT:
+    pthread_exit(NULL);
 }

@@ -205,7 +205,7 @@ void controller_update(uint8_t mode, float thr, float avz, float heading) {
     if (thr != 0.0 || avz != 0.0) {
         // Do computation.
         float _thr[4] = {thr, thr, thr, thr};
-        _output_pid_az = avz != 0.0 ? avz : pid_update(pidsetting_az, 0, GET_MIN_INCLUDED_ANGLE(ahrs_get_yaw_heading(), heading));
+        _output_pid_az = avz != 0.0 ? avz : pid_update(pidsetting_az, 0, GET_MIN_INCLUDED_ANGLE_RAD(ahrs_get_yaw_heading(), heading));
         _output_pid_avz = pid_update(pidsetting_avz, _output_pid_az, imu_get_gz());
 
         // Map pid output to throttle array.

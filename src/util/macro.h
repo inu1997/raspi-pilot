@@ -52,7 +52,15 @@
     (a) \
 )
 
-#define GET_MIN_INCLUDED_ANGLE(from, to) ANGLE_LIMIT_DEG(ANGLE_LIMIT_DEG(to) - ANGLE_LIMIT_DEG(from))
+#define ANGLE_LIMIT_RAD(a) ( \
+    (a) > PI ? fmodf(a, (2 * PI)) - (2 * PI) : \
+    (a) < -PI ? fmodf(a, (2 * PI)) + (2 * PI) : \
+    (a) \
+)
+
+#define GET_MIN_INCLUDED_ANGLE_DEG(from, to) (ANGLE_LIMIT_DEG(ANGLE_LIMIT_DEG(to) - ANGLE_LIMIT_DEG(from)))
+
+#define GET_MIN_INCLUDED_ANGLE_RAD(from, to) (ANGLE_LIMIT_RAD(ANGLE_LIMIT_RAD(to) - ANGLE_LIMIT_RAD(from)))
 
 #define DEADBAND(value, threshold) ( \
     (value) >= (threshold) ? (value) : \

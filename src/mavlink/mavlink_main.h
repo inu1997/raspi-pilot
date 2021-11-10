@@ -25,15 +25,6 @@ typedef struct __mavlink_message mavlink_message_t;
     mavlink_publish(buf, len); \
 } while(0)
 
-struct MAVLinkFile {
-    char name[16]; // Name of connection.
-    int fd; // File Descriptor for R/W.
-    int mav_channel; // mavlink channel to use.
-    void (*on_begin)(); // Things to do on begin.
-    void (*on_end)(); // Things to do on end.
-    bool exit_on_error;
-};
-
 #define MAVLINK_SYS_ID 1
 extern struct Publisher *mavlink_publisher;
 
@@ -43,13 +34,14 @@ int mavlink_send(mavlink_message_t *msg);
 
 int mavlink_publish(uint8_t *buf, int len);
 
-void *mavlink_connection_handler(void *mavlink_file);
+void mavlink_communication(const int fd, const bool exit_on_error, const bool exit_on_idle, const bool wait_for_heartbeat);
 
 int mavlink_get_active_connections();
 
 void mavlink_on_connection_active();
 
 void mavlink_on_connection_inactive();
+
 //----- Utility
 
 int mavlink_ocupy_usable_channel();

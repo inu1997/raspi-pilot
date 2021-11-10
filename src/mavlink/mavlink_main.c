@@ -1,6 +1,6 @@
 #include "mavlink_main.h"
 #include "mavlink_handler.h"
-#include "mavlink_tcp_server.h"
+#include "mavlink_tcp.h"
 #include "mavlink_udp.h"
 #include "mavlink_stream.h"
 #include "mavlink_util.h"
@@ -15,6 +15,7 @@
 #include "util/logger.h"
 #include "util/debug.h"
 #include "util/macro.h"
+#include "util/system/scheduler.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -24,7 +25,8 @@
 #include <sys/ioctl.h>
 #include <pthread.h>
 
-pthread_mutex_t _n_connect_mutex;
+pthread_mutex_t _n_connect_mutex; // Be used to count connections.
+pthread_mutex_t _communication_init_mutex; // Be used to initiate communication.
 
 static int _n_connection;
 
@@ -47,6 +49,7 @@ void mavlink_on_connection_inactive() {
 int mavlink_init() {
     LOG("Initiating MAVLink.\n");
     pthread_mutex_init(&_n_connect_mutex, NULL);
+    pthread_mutex_init(&_communication_init_mutex, NULL);
     _n_connection = 0;
 
     if (subscription_init() != 0) {
@@ -54,8 +57,8 @@ int mavlink_init() {
         return -1;
     }
 
-    if (mavlink_init_tcp_server() != 0) {
-        LOG_ERROR("Failed to initiate server.\n");
+    if (mavlink_init_tcp() != 0) {
+        LOG_ERROR("Failed to initiate tcp.\n");
         return -1;
     }
     
@@ -97,28 +100,8 @@ int mavlink_publish(uint8_t *buf, int len) {
     return publish(buf, len);
 }
 
-/**
- * @brief Mavlink thread function.
- * 
- * @param arg
- *      ConnectionArg struct.
- * @return NULL
- */
-void *mavlink_connection_handler(void *mavlink_file) {
-    pthread_detach(pthread_self());
-    
-    struct MAVLinkFile *connection = (struct MAVLinkFile*)mavlink_file;
-    
-    LOG("Connection to \"%s\" established. Channel: %d.\n", connection->name, connection->mav_channel);
-    LOG("Initializing.\n");
-    if (connection->on_begin != NULL) {
-        DEBUG("Executing on_begin function.\n");
-        connection->on_begin();
-    }
-    DEBUG("Setting detachable.\n");
-
-    LOG("Activate subscribtor.\n");
-    subscriber_set_active(connection->mav_channel, true);
+void mavlink_communication(const int fd, const bool exit_on_error, const bool exit_on_idle, const bool wait_for_heartbeat) {
+    int channel; // MAVLink channel.
 
     int ret; // Return value of R/W a fd.
     int i; // For recurse.
@@ -126,41 +109,48 @@ void *mavlink_connection_handler(void *mavlink_file) {
     char w_buf[256]; // Buffer for write.
     int r_cnt; // Read count.
     char r_buf[256]; // buffer for read.
-
-    mavlink_message_t r_msg; // mavlink message received.
-    mavlink_status_t mav_status; // Mavlink message status.
+    bool active = false; // Check if connection is active or idle.
+    struct timeval tv_since_last_hb; // Time since last time received heartbeat.
+    struct timeval now; // For getting current time.
+    mavlink_message_t r_msg; // Received MAVLink message.
+    mavlink_status_t r_status; // Received MAVLink status.
     
-    bool active = false; // Check if connection active/ inactive.
-    struct timeval tv_since_last_hb = TV_INITIALIZER; // Check idle time.
+    // Initialization/
+    channel = mavlink_ocupy_usable_channel();
+    mavlink_reset_channel_status(channel);
+    
+    if (wait_for_heartbeat == false) {
+        // Don't wait for heartbeat. Start the subscriber anyway.
+        subscriber_set_active(channel, true);
+    }
+    // Make the RW non-blocking.
+    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
+    gettimeofday(&tv_since_last_hb, NULL);
 
-    fcntl(connection->fd, F_SETFL, fcntl(connection->fd, F_GETFL, 0) | O_NONBLOCK);
-    LOG("Connection \"%s\" is now trasmitting.\n", connection->name);
+    // Communication loop.
     while (1) {
-        // Limit rate.
-        usleep(10000);
-        
-        // Send
-        while (subscriber_available(connection->mav_channel)) {
-            if ((w_cnt = subscriber_read(connection->mav_channel, w_buf, sizeof(w_buf))) > 0) {
-                // Send
-                if ((ret = write(connection->fd, w_buf, w_cnt)) < 0) {
-                    LOG_ERROR("Error while write.(%s)\n", strerror(ret));
-                    if (connection->exit_on_error) {
-                        goto CONNECTION_DIED;
+        usleep(100000);
+
+        // Write, check if there is message in subscriber queue.
+        while (subscriber_available(channel)) {
+            // Read from subscriber.
+            if ((w_cnt = subscriber_read(channel, w_buf, sizeof(w_buf))) > 0) {
+                // Write to fd.
+                if ((ret = write(fd, w_buf, w_cnt)) < 0) {
+                    if (exit_on_error) {
+                        LOG_ERROR("Error occured while writing.\n");
+                        goto EXIT;
                     }
-                    
-                } 
-                tcdrain(connection->fd);
+                }
+                tcdrain(fd);
             }
         }
+
         // Read
-        r_cnt = read(connection->fd, r_buf, sizeof(r_buf));
-        
-        if (r_cnt > 0) {
-
-            for(i = 0; i < r_cnt; i++) {
-
-                if (mavlink_parse_char(connection->mav_channel, r_buf[i], &r_msg, &mav_status)) {
+        if ((r_cnt = read(fd, r_buf, sizeof(r_buf))) > 0) {
+            for (i = 0; i < r_cnt; i++) {
+                // Parse read characters.
+                if (mavlink_parse_char(channel, r_buf[i], &r_msg, &r_status)) {
                     // GOT MESSAGE!
 #ifdef _DEBUG
                     if (r_msg.msgid != 0 && r_msg.msgid != MAVLINK_MSG_ID_MANUAL_CONTROL) {
@@ -172,58 +162,66 @@ void *mavlink_connection_handler(void *mavlink_file) {
 #ifdef _DEBUG
                         if (r_msg.msgid != MAVLINK_MSG_ID_MANUAL_CONTROL && r_msg.msgid != MAVLINK_MSG_ID_HEARTBEAT) {
                             DEBUG("Handle success.\n");
-#endif // _DEBUG
-
                         }
+#endif // _DEBUG
                     } else {
                         LOG_ERROR("Handler failure.\n");
                     }
 
-                    // Check heartbeat.
+                    // Check heartbeat if wait_for_heartbeat is set.
                     if (r_msg.msgid == 0) {
                         // Heartbeat received.
-                        if (active == false) {
-                            mavlink_on_connection_active();
-                            subscriber_set_active(connection->mav_channel, true);
-                            active = true;
-                        }
                         // Update timeval.
                         gettimeofday(&tv_since_last_hb, NULL);
+
+                        if (active == false) {
+                            // This communication is active.
+                            active = true;
+                            mavlink_on_connection_active();
+                            scheduler_set_real_time(true, 5);
+
+                            if (wait_for_heartbeat) {
+                                subscriber_set_active(channel, true);
+                            }
+                        }
                     }
                 }
             }
         }
-        // Check inactive.
-        struct timeval now;
+
+        
+        // Check inactive if exit_on_idle is set..
         gettimeofday(&now, NULL);
         if (tv_get_diff_sec_ul(&tv_since_last_hb, &now) >= 5) {
+            
+            if (exit_on_idle) {
+                LOG_ERROR("Communication idle. Exiting.\n");
+                goto EXIT;
+            }
+
             if (active == true) {
-                mavlink_on_connection_inactive();
-                subscriber_set_active(connection->mav_channel, false);
+                // This communication is longer active.
                 active = false;
+                mavlink_on_connection_inactive();
+
+                scheduler_set_real_time(false, 0);
+                if (wait_for_heartbeat) {
+                    subscriber_set_active(channel, false);
+                }
             }
         }
     }
-    // Connection died.
-    CONNECTION_DIED:
+
+    EXIT:
+    // Turning off.
     if (active == true) {
-        mavlink_on_connection_inactive();
         active = false;
+        mavlink_on_connection_inactive();
+        scheduler_set_real_time(false, 0);
     }
-
-    subscriber_reset(connection->mav_channel);
-
-    mavlink_release_channel(connection->mav_channel);
-    
-    if (connection->on_end != NULL) {
-        DEBUG("Executing end function.\n");
-        connection->on_end();
-    }
-    
-    close(connection->fd);
-    LOG("Connection to \"%s\" died.\n", connection->name);
-    free(connection);
-    pthread_exit(NULL);
+    subscriber_set_active(channel, false);
+    mavlink_release_channel(channel);
+    close(fd);
 }
 
 /**

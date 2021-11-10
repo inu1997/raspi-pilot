@@ -8,10 +8,12 @@
 #include "util/parameter.h"
 
 #include "driver/pca9685.h"
+#include "mavlink/mavlink_main.h"
 
 #include "measurement/measurement.h"
 #include "measurement/calibration.h"
 
+#include <unistd.h>
 #include <pthread.h>
 #include <string.h>
 
@@ -86,6 +88,12 @@ int pilot_init(){
     _heading_is_locked = false;
     _prev_btn_state = 0;
     LOG("Done.\n");
+
+    // Nod the camera.
+    pca_write_servo(15, 2000);
+    usleep(1000000);
+    pca_write_servo(15, 1000);
+    
     //----- Ready
     pilot_set_mode(PILOT_MODE_STABILIZE);
     return 0;
@@ -112,6 +120,10 @@ void pilot_update(){
     pca_write_servo(15, _gimbal_position_x);
 
     pilot_unlock_mutex();
+    
+    if (pilot_is_armed() && mavlink_get_active_connections() == 0) {
+        pilot_disarm();
+    }
 }
 
 /**

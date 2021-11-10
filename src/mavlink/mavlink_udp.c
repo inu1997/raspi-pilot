@@ -128,12 +128,13 @@ void *mavlink_udp_handler(void *arg) {
                     // Check heartbeat.
                     if (r_msg.msgid == 0) {
                         // Heartbeat received.
+                        // Update timeval.
+                        gettimeofday(&tv_since_last_hb, NULL);
                         if (active == false) {
                             mavlink_on_connection_active();
                             active = true;
+                            scheduler_set_real_time(true, 5);
                         }
-                        // Update timeval.
-                        gettimeofday(&tv_since_last_hb, NULL);
                     }
                 }
             }
@@ -143,8 +144,10 @@ void *mavlink_udp_handler(void *arg) {
         gettimeofday(&now, NULL);
         if (tv_get_diff_sec_ul(&tv_since_last_hb, &now) >= 5) {
             if (active == true) {
+                // No longer active.
                 mavlink_on_connection_inactive();
                 active = false;
+                scheduler_set_real_time(false, 0);
             }
         }
     }
